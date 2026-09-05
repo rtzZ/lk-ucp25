@@ -17,7 +17,6 @@ export default function Login({ onLogin }: Props) {
   const [firstName, setFirstName] = useState("");
   const [telegramUsername, setTelegramUsername] = useState("");
   const [telegramCode, setTelegramCode] = useState("");
-  const [useTelegram, setUseTelegram] = useState(false);
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<Student[]>([]);
   const [codeSent, setCodeSent] = useState(false);
@@ -110,46 +109,39 @@ export default function Login({ onLogin }: Props) {
         </div>
       ))}
       <div style={{ marginTop: "20px", borderTop: "1px solid #eee", paddingTop: "20px" }}>
-        <label>
-          <input type="checkbox" checked={useTelegram} onChange={(e) => setUseTelegram(e.target.checked)} />
-          Войти через Telegram
-        </label>
-        {useTelegram && (
+        <h3>Вход через Telegram</h3>
+        <label htmlFor="telegram-username">Telegram username</label>
+        <Textfield
+          id="telegram-username"
+          value={telegramUsername}
+          onChange={(e) => setTelegramUsername((e.target as HTMLInputElement).value)}
+          placeholder="@username"
+          style={{ marginTop: "8px" }}
+        />
+        {codeSent && (
           <>
-            <label htmlFor="telegram-username">Telegram username</label>
+            <label htmlFor="telegram-code">Временный код (6 цифр)</label>
             <Textfield
-              id="telegram-username"
-              value={telegramUsername}
-              onChange={(e) => setTelegramUsername((e.target as HTMLInputElement).value)}
-              placeholder="@username"
+              id="telegram-code"
+              value={telegramCode}
+              onChange={(e) => setTelegramCode((e.target as HTMLInputElement).value)}
+              placeholder="000000"
+              maxLength={6}
               style={{ marginTop: "8px" }}
             />
-            {codeSent && (
-              <>
-                <label htmlFor="telegram-code">Временный код (6 цифр)</label>
-                <Textfield
-                  id="telegram-code"
-                  value={telegramCode}
-                  onChange={(e) => setTelegramCode((e.target as HTMLInputElement).value)}
-                  placeholder="000000"
-                  maxLength={6}
-                  style={{ marginTop: "8px" }}
-                />
-                <div className="actions" style={{ marginTop: "12px" }}>
-                  <Button appearance="primary" onClick={telegramLogin} isDisabled={telegramCode.length !== 6}>
-                    Войти по коду
-                  </Button>
-                </div>
-              </>
-            )}
-            {!codeSent && (
-              <div className="actions" style={{ marginTop: "12px" }}>
-                <Button appearance="primary" onClick={requestTelegramCode} isDisabled={!telegramUsername.trim()}>
-                  Получить код
-                </Button>
-              </div>
-            )}
+            <div className="actions" style={{ marginTop: "12px" }}>
+              <Button appearance="primary" onClick={telegramLogin} isDisabled={telegramCode.length !== 6}>
+                Войти по коду
+              </Button>
+            </div>
           </>
+        )}
+        {!codeSent && (
+          <div className="actions" style={{ marginTop: "12px" }}>
+            <Button appearance="primary" onClick={requestTelegramCode} isDisabled={!telegramUsername.trim()}>
+              Получить код
+            </Button>
+          </div>
         )}
       </div>
     </div>
