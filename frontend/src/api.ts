@@ -64,6 +64,24 @@ export const api = {
     }
     return body.student as Student;
   },
+  telegramRequestCode: async (username: string) => {
+    const r = await fetch(`${API}/auth/telegram_request_code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegram_username: username }),
+    });
+    return r.json();
+  },
+  telegramLogin: async (username: string, code: string) => {
+    const r = await fetch(`${API}/auth/telegram_login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegram_username: username, code }),
+    });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || "Telegram login failed");
+    return body.student as Student;
+  },
   schedule: (group: string, kind = "") =>
     get<ScheduleItem[]>(
       `/schedule?group=${encodeURIComponent(group)}` +

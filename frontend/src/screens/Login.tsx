@@ -1,4 +1,4 @@
-/** Экран входа: группа + фамилия/имя. */
+/** Экран входа: группа + фамилия/имя или Telegram username + код. */
 
 import { useEffect, useState } from "react";
 import Button from "@atlaskit/button/new";
@@ -15,8 +15,12 @@ export default function Login({ onLogin }: Props) {
   const [group, setGroup] = useState("УЦП-25");
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [telegramUsername, setTelegramUsername] = useState("");
+  const [telegramCode, setTelegramCode] = useState("");
+  const [useTelegram, setUseTelegram] = useState(false);
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<Student[]>([]);
+  const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
     api.groups().then((g) => {
@@ -39,6 +43,32 @@ export default function Login({ onLogin }: Props) {
       setError(
         sug.length > 0 ? "Уточните имя:" : "Студент не найден. Проверьте фамилию."
       );
+    }
+  };
+
+  const requestTelegramCode = async () => {
+    setError("");
+    try {
+      const data = await api.telegramRequestCode(telegramUsername.trim());
+      if (data.code_sent) {
+        setCodeSent(true);
+        setError("Код отправлен. Введите его ниже (действует 60 сек).");
+      } else {
+        setError(data.error || "Ошибка запроса кода");
+      }
+    } catch (e: any) {
+      setError(e.message || "Не удалось отправить код. Проверьте подключение.");
+    }
+  };
+
+  const telegramLogin = async () => {
+    setError("");
+    setSuggestions([]);
+    try {
+      const student = await api.telegramLogin(telegramUsername.trim(), telegramCode.trim());
+      onLogin(student, group);
+    } catch (e: any) {
+      setError(e.message || "Ошибка входа. Проверьте код.");
     }
   };
 
@@ -79,6 +109,49 @@ export default function Login({ onLogin }: Props) {
           </Button>
         </div>
       ))}
+      <div style={{ marginTop: "20px", borderTop: "1px solid #eee", paddingTop: "20px" }}>
+        <label>
+          <input type="checkbox" checked={useTelegram} onChange={(e) => setUseTelegram(e.target.checked)} />
+          Войти через Telegram
+        </label>
+        {useTelegram && (
+          <>
+            <label htmlFor="telegram-username">Telegram username</label>
+            <Textfield
+              id="telegram-username"
+              value={telegramUsername}
+              onChange={(e) => setTelegramUsername((e.target as HTMLInputElement).value)}
+              placeholder="@username"
+              style={{ marginTop: "8px" }}
+            />
+            {codeSent && (
+              <>
+                <label htmlFor="telegram-code">Временный код (6 цифр)</label>
+                <Textfield
+                  id="telegram-code"
+                  value={telegramCode}
+                  onChange={(e) => setTelegramCode((e.target as HTMLInputElement).value)}
+                  placeholder="000000"
+                  maxLength={6}
+                  style={{ marginTop: "8px" }}
+                />
+                <div className="actions" style={{ marginTop: "12px" }}>
+                  <Button appearance="primary" onClick={telegramLogin} isDisabled={telegramCode.length !== 6}>
+                    Войти по коду
+                  </Button>
+                </div>
+              </>
+            )}
+            {!codeSent && (
+              <div className="actions" style={{ marginTop: "12px" }}>
+                <Button appearance="primary" onClick={requestTelegramCode} isDisabled={!telegramUsername.trim()}>
+                  Получить код
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

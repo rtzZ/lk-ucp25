@@ -22,11 +22,26 @@ class LoginIn(BaseModel):
     first_name: str = ""
 
 
+class TelegramLoginIn(BaseModel):
+    """Вход через Telegram: username + временный 6-значный код."""
+
+    telegram_username: str
+    code: str
+
+
 class LoginOut(BaseModel):
     """Успешный вход либо подсказки-однофамильцы при неточном вводе."""
 
     student: StudentOut | None = None
     suggestions: list[StudentOut] = []
+
+
+class TelegramLoginOut(BaseModel):
+    """Ответ на telegram-login: код сгенерирован или ошибка."""
+
+    code_sent: bool | None = None
+    error: str | None = None
+    student: StudentOut | None = None
 
 
 class GradeOut(BaseModel):
