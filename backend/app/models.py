@@ -35,6 +35,7 @@ class Student(Base):
     first_name: Mapped[str] = mapped_column(String(128), default="")
     full_name: Mapped[str] = mapped_column(String(256), default="")
     telegram_username: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True, default=None)
+    telegram_user_id: Mapped[int | None] = mapped_column(nullable=True, default=None)
 
 
 class Subject(Base):
