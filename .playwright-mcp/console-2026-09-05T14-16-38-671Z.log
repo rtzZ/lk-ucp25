@@ -1,3 +1,0 @@
-[    1862ms] [WARNING] The "documentType" parameter for the config object must take one of the values word/cell/slide. @ https://mlpcv2zegqdpk7v4_vla_805_0938abf4a3b7c9a768d6a590fb3a6396.onlyoffice.disk.yandex.net/web-apps/apps/api/documents/api.js:441
-[    7148ms] [LOG] Obsolete: The 'chat' parameter of the 'customization' section is deprecated. Please use 'chat' parameter in the permissions instead. @ https://mlpcv2zegqdpk7v4_vla_805_0938abf4a3b7c9a768d6a590fb3a6396.onlyoffice.disk.yandex.net/2024.1.1-375/web-apps/apps/spreadsheeteditor/main/app.js:7
-[   22999ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://mc.yandex.ru/metrika/watch.js:0
