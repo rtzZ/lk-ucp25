@@ -1,0 +1,47 @@
+- main [ref=f5e3]:
+  - generic [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - strong [ref=f5e6]: Иванов Иван Иванович
+      - generic [ref=f5e7]: УЦП-25
+    - button "Выйти" [ref=f5e8] [cursor=pointer]
+  - navigation [ref=f5e10]:
+    - button "Расписание" [ref=f5e11] [cursor=pointer]
+    - button "Оценки" [ref=f5e12] [cursor=pointer]
+  - generic [ref=f5e38]:
+    - generic [ref=f5e39]:
+      - generic [ref=f5e40]: Иванов Иван Иванович
+      - generic [ref=f5e41]: "Средний балл: 5.00"
+    - generic [ref=f5e43]:
+      - generic [ref=f5e44]:
+        - status [ref=f5e46]: option Физика, selected.
+        - generic [ref=f5e48] [cursor=pointer]:
+          - generic [ref=f5e120]: Физика
+          - combobox "Фильтр по предмету" [active] [ref=f5e51]
+      - generic [ref=f5e56]:
+        - status [ref=f5e58]
+        - generic [ref=f5e60]:
+          - generic [ref=f5e61]: Все
+          - combobox "Фильтр по семестру" [ref=f5e63]
+      - generic [ref=f5e68]:
+        - status [ref=f5e70]
+        - generic [ref=f5e72]:
+          - generic [ref=f5e73]: Все
+          - combobox "Фильтр по оценке" [ref=f5e75]
+      - generic [ref=f5e80]:
+        - status [ref=f5e82]
+        - generic [ref=f5e84]:
+          - generic [ref=f5e85]: Все
+          - combobox "Фильтр по ECTS" [ref=f5e87]
+    - table [ref=f5e93]:
+      - rowgroup [ref=f5e94]:
+        - row [ref=f5e95]:
+          - columnheader "Предмет" [ref=f5e96]
+          - columnheader "Семестр" [ref=f5e97]
+          - columnheader "Оценка" [ref=f5e98]
+          - columnheader "ECTS" [ref=f5e99]
+      - rowgroup [ref=f5e100]:
+        - row [ref=f5e108]:
+          - cell "Физика (зачет)" [ref=f5e109]
+          - cell "1 семестр 25-26" [ref=f5e110]
+          - cell "зачтено" [ref=f5e111]
+          - cell "Passed" [ref=f5e114]

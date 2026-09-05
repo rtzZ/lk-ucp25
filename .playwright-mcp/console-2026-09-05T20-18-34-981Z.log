@@ -1,0 +1,27 @@
+[    1003ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=a7c88b6e:21608
+[    1165ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: platform-dst-motion-uplift-button, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-JIZNRWPN.js?v=a7c88b6e:6360
+[    1345ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0
+[  159319ms] [ERROR] Warning: %s: Support for defaultProps will be removed from function components in a future major release. Use JavaScript default parameters instead.%s LockToggle2 
+    at LockToggle2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:586:20)
+    at DrawerContent2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:1428:24)
+    at LevelProvider2 (http://localhost:5173/node_modules/.vite/deps/chunk-PML3K7E6.js?v=a7c88b6e:99:23)
+    at Layering2 (http://localhost:5173/node_modules/.vite/deps/chunk-PML3K7E6.js?v=a7c88b6e:115:24)
+    at div
+    at div
+    at FocusLockUI (http://localhost:5173/node_modules/.vite/deps/chunk-ZMDV676L.js?v=a7c88b6e:933:46)
+    at FocusLockUICombination
+    at FocusLock2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:809:36)
+    at EnteringMotion2 (http://localhost:5173/node_modules/.vite/deps/chunk-IFIYPTUW.js?v=a7c88b6e:189:23)
+    at SlideIn2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:785:23)
+    at CustomSlideIn2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:843:23)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-YP2EYYIO.js?v=a7c88b6e:3425:26
+    at DrawerPanel2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:854:24)
+    at InternalPortal (http://localhost:5173/node_modules/.vite/deps/chunk-NAIAFMUN.js?v=a7c88b6e:1175:22)
+    at Portal (http://localhost:5173/node_modules/.vite/deps/chunk-NAIAFMUN.js?v=a7c88b6e:1366:26)
+    at DrawerBase2 (http://localhost:5173/node_modules/.vite/deps/@atlaskit_drawer.js?v=a7c88b6e:1276:27)
+    at Drawer2
+    at div
+    at Grades (http://localhost:5173/src/screens/Grades.tsx:76:34)
+    at main
+    at App (http://localhost:5173/src/App.tsx:26:33) @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=a7c88b6e:520

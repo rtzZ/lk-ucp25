@@ -1,0 +1,84 @@
+[    1329ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=6a125b1e:21608
+[    1394ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: analytics-next-use-legacy-context, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-E5HLUE4M.js?v=6a125b1e:6360
+[   31464ms] [ERROR] Warning: Using UNSAFE_componentWillMount in strict mode is not recommended and may indicate bugs in your code. See https://reactjs.org/link/unsafe-component-lifecycles for details.
+
+* Move code with side effects to componentDidMount, and set initial state in the constructor.
+
+Please update the following components: %s TableHead2 @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=6a125b1e:520
+[   31464ms] [ERROR] Warning: Using UNSAFE_componentWillReceiveProps in strict mode is not recommended and may indicate bugs in your code. See https://reactjs.org/link/unsafe-component-lifecycles for details.
+
+* Move data fetching code or side effects to componentDidUpdate.
+* If you're updating state whenever props change, refactor your code to use memoization techniques or move it to static getDerivedStateFromProps. Learn more at: https://reactjs.org/link/derived-state
+
+Please update the following components: %s LoadingContainerAdvanced2, TableHead2 @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=6a125b1e:520
+[  212712ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:963
+[  215053ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  218394ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  221749ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  225095ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  228444ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  231784ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  235149ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  238513ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  241890ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  245291ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  248701ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  252181ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  255626ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  259192ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  263464ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  267353ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  275184ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  282781ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  291099ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  297831ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  304377ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  312215ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  320032ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  325704ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  331674ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  337438ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  344906ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  352145ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  359950ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  364409ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  370294ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  375079ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  379896ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  387190ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  391712ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  398953ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  405192ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  406876ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/grades?student_id=1:0
+[  407156ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/grades?student_id=1:0
+[  409202ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25:0
+[  410794ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25:0
+[  411545ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=lesson:0
+[  411872ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=attestation:0
+[  412000ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  412997ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=deadline:0
+[  413619ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25:0
+[  414629ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=lesson:0
+[  415129ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=attestation:0
+[  415495ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/schedule?group=%D0%A3%D0%A6%D0%9F-25&kind=deadline:0
+[  415841ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/grades?student_id=1:0
+[  416501ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8001/grades?student_id=1:0
+[  420118ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  427362ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  433935ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  438553ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  443880ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  448362ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  452814ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  459380ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  466842ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  474952ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  480433ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  488502ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  493184ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  498715ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  503853ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[  520831ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=1177e0f9:21608
+[  521713ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: platform-dst-motion-uplift-button, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-E5HLUE4M.js?v=1177e0f9:6360

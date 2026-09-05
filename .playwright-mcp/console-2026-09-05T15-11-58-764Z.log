@@ -1,0 +1,14 @@
+[   18543ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=a0dde583:21608
+[   18708ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: analytics-next-use-legacy-context, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-E5HLUE4M.js?v=a0dde583:6360
+[   18977ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0
+[   19246ms] [ERROR] Access to fetch at 'http://localhost:8000/schedule/groups' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5173/:0
+[   19248ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:8000/schedule/groups:0
+[   19279ms] [ERROR] Access to fetch at 'http://localhost:8000/schedule/groups' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5173/:0
+[   19279ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:8000/schedule/groups:0
+[   39569ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:963
+[   41929ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[   45266ms] [ERROR] WebSocket connection to 'ws://localhost:5173/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:1034
+[   50269ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=6a125b1e:21608
+[   50427ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: analytics-next-use-legacy-context, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-E5HLUE4M.js?v=6a125b1e:6360

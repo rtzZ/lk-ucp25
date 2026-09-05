@@ -1,0 +1,14 @@
+[     900ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=1177e0f9:21608
+[    1154ms] [WARNING] {msg: An error has occurred checking the feature gate. Only the first occurrence of this error is logged., gateName: platform-dst-motion-uplift-button, error: Error: Client must be initialized before using this method
+    at Client2.assertInitialized (http:/…} @ http://localhost:5173/node_modules/.vite/deps/chunk-E5HLUE4M.js?v=1177e0f9:6360
+[   17839ms] [ERROR] Warning: Using UNSAFE_componentWillMount in strict mode is not recommended and may indicate bugs in your code. See https://reactjs.org/link/unsafe-component-lifecycles for details.
+
+* Move code with side effects to componentDidMount, and set initial state in the constructor.
+
+Please update the following components: %s TableHead2 @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=1177e0f9:520
+[   17839ms] [ERROR] Warning: Using UNSAFE_componentWillReceiveProps in strict mode is not recommended and may indicate bugs in your code. See https://reactjs.org/link/unsafe-component-lifecycles for details.
+
+* Move data fetching code or side effects to componentDidUpdate.
+* If you're updating state whenever props change, refactor your code to use memoization techniques or move it to static getDerivedStateFromProps. Learn more at: https://reactjs.org/link/derived-state
+
+Please update the following components: %s LoadingContainerAdvanced2, TableHead2 @ http://localhost:5173/node_modules/.vite/deps/chunk-YQ5BCTVV.js?v=1177e0f9:520

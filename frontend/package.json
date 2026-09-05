@@ -1,0 +1,33 @@
+{
+  "name": "lk-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@atlaskit/button": "^25.3.2",
+    "@atlaskit/drawer": "^14.3.0",
+    "@atlaskit/dropdown-menu": "^18.3.0",
+    "@atlaskit/dynamic-table": "^19.3.2",
+    "@atlaskit/lozenge": "^15.4.1",
+    "@atlaskit/select": "^22.11.1",
+    "@atlaskit/textfield": "^10.2.1",
+    "@atlaskit/toggle": "^17.3.0",
+    "@atlaskit/tokens": "^16.11.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.3"
+  }
+}

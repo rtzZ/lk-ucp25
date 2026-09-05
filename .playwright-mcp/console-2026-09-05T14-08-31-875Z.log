@@ -1,0 +1,66 @@
+[    9753ms] [LOG] Obsolete: The 'chat' parameter of the 'customization' section is deprecated. Please use 'chat' parameter in the permissions instead. @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/web-apps/apps/spreadsheeteditor/main/app.js:1
+[   16780ms] [LOG] WARN: unknown_enum_item: 11 of enum: {Button: 0, Checkbox: 1, Drop: 3, Scroll: 16, Spin: 18} @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:26
+[   16782ms] [ERROR] cannot_deserialize_formcontrol TypeError: formcontrol_type_not_found
+    at h.getType (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:11:17248)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:2317)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:3598)
+    at M.load (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:27:7378)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:5137)
+    at HC.ReadDrawings (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:54242)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34577
+    at ie.Read1 (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:220:267853)
+    at HC.ReadWorksheet (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34542)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:33012 @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:43
+[   16783ms] [LOG] WARN: unknown_enum_item: 11 of enum: {Button: 0, Checkbox: 1, Drop: 3, Scroll: 16, Spin: 18} @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:26
+[   16784ms] [ERROR] cannot_deserialize_formcontrol TypeError: formcontrol_type_not_found
+    at h.getType (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:11:17248)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:2317)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:3598)
+    at M.load (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:27:7378)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:5137)
+    at HC.ReadDrawings (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:54242)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34577
+    at ie.Read1 (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:220:267853)
+    at HC.ReadWorksheet (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34542)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:33012 @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:43
+[   16791ms] [LOG] WARN: unknown_enum_item: 11 of enum: {Button: 0, Checkbox: 1, Drop: 3, Scroll: 16, Spin: 18} @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:26
+[   16792ms] [ERROR] cannot_deserialize_formcontrol TypeError: formcontrol_type_not_found
+    at h.getType (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:11:17248)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:2317)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:3598)
+    at M.load (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:27:7378)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:5137)
+    at HC.ReadDrawings (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:54242)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34577
+    at ie.Read1 (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:220:267853)
+    at HC.ReadWorksheet (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34542)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:33012 @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:43
+[   16795ms] [LOG] WARN: unknown_enum_item: 11 of enum: {Button: 0, Checkbox: 1, Drop: 3, Scroll: 16, Spin: 18} @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:26
+[   16797ms] [ERROR] cannot_deserialize_formcontrol TypeError: formcontrol_type_not_found
+    at h.getType (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:11:17248)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:2317)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:3598)
+    at M.load (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:27:7378)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:5137)
+    at HC.ReadDrawings (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:54242)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34577
+    at ie.Read1 (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:220:267853)
+    at HC.ReadWorksheet (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34542)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:33012 @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:43
+[   16797ms] [LOG] WARN: unknown_enum_item: 11 of enum: {Button: 0, Checkbox: 1, Drop: 3, Scroll: 16, Spin: 18} @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:26
+[   16798ms] [ERROR] cannot_deserialize_formcontrol TypeError: formcontrol_type_not_found
+    at h.getType (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:11:17248)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:2317)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:3598)
+    at M.load (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:27:7378)
+    at O.value (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:14:5137)
+    at HC.ReadDrawings (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:54242)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34577
+    at ie.Read1 (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:220:267853)
+    at HC.ReadWorksheet (https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:34542)
+    at https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all.js:380:33012 @ https://tky22whz2rxa67zd_klg_808_9affd19516d5b4ff2d6a128a734bf775.onlyoffice.disk.yandex.net/2026.2.1-2268/sdkjs/cell/sdk-all-min.js:43
+[   23693ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://mc.yandex.ru/metrika/watch.js:0
+[  106436ms] [ERROR] Connecting to 'https://downloader.disk.yandex.ru/disk/289a1ad92a3366a8238bdfbacd244612097764e40a84dc39a1238dce29a5163a/6a9c5aa0/fKqInKw3d7bLFOeFnMGnhFU68o3iuk8Zcbl7mRlJPQFoS57oeSzC7EY7ypiLj6vqv9bb6HVkZYMwckND35KWU97M7FT5FCKcijf1dmKq1oSr8npumZHI4midPdWhecNq?uid=1130000067716952&filename=rasp.xlsx&disposition=attachment&limit=0&content_type=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet&owner_uid=1130000067716952&fsize=220080&hid=983c58fc86ec7b760f2debc5b1eaea2f&media_type=document&tknv=v3&is_direct_zip_experiment=1&etag=93930ef7c6f378c904e1f7ab2c90106e' violates the following Content Security Policy directive: "connect-src yandex.ru mc.yandex.ru mc.yandex.ua mc.yandex.by mc.yandex.kz mc.yandex.com.tr mc.yandex.com mc.admetrica.ru *.disk.yandex.net volga.yandex.ru *.volga.yandex.ru 'self' mc.yandex.az mc.yandex.co.il mc.yandex.com.am mc.yandex.com.ge mc.yandex.ee mc.yandex.fr mc.yandex.kg mc.yandex.lt mc.yandex.lv mc.yandex.md mc.yandex.tj mc.yandex.tm mc.yandex.uz mc.webvisor.com mc.webvisor.org wss://mc.yandex.ru wss://mc.yandex.az wss://mc.yandex.by wss://mc.yandex.co.il wss://mc.yandex.com wss://mc.yandex.com.am wss://mc.yandex.com.ge wss://mc.yandex.com.tr wss://mc.yandex.ee wss://mc.yandex.fr wss://mc.yandex.kg wss://mc.yandex.kz wss://mc.yandex.lt wss://mc.yandex.lv wss://mc.yandex.md wss://mc.yandex.tj wss://mc.yandex.tm wss://mc.yandex.uz wss://mc.webvisor.com wss://mc.webvisor.org mc.yango.com wss://mc.yango.com". The action has been blocked. @ :0
+[  106438ms] [ERROR] Fetch API cannot load https://downloader.disk.yandex.ru/disk/289a1ad92a3366a8238bdfbacd244612097764e40a84dc39a1238dce29a5163a/6a9c5aa0/fKqInKw3d7bLFOeFnMGnhFU68o3iuk8Zcbl7mRlJPQFoS57oeSzC7EY7ypiLj6vqv9bb6HVkZYMwckND35KWU97M7FT5FCKcijf1dmKq1oSr8npumZHI4midPdWhecNq?uid=1130000067716952&filename=rasp.xlsx&disposition=attachment&limit=0&content_type=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet&owner_uid=1130000067716952&fsize=220080&hid=983c58fc86ec7b760f2debc5b1eaea2f&media_type=document&tknv=v3&is_direct_zip_experiment=1&etag=93930ef7c6f378c904e1f7ab2c90106e. Refused to connect because it violates the document's Content Security Policy. @ :0
+[  128662ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://csp.yandex.net/csp?from=disk-editor&project=disk-editor&yandex_login=&yandexuid=2845731261788617312:0
+[  171324ms] [ERROR] Permissions policy violation: The Clipboard API has been blocked because of a permissions policy applied to the current document. See https://crbug.com/414348233 for more details. @ :0

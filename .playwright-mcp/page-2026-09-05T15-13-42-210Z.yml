@@ -1,0 +1,31 @@
+- main [ref=f2e3]:
+  - generic [ref=f2e26]:
+    - generic [ref=f2e27]:
+      - strong [ref=f2e28]: Иванов Иван Иванович
+      - generic [ref=f2e29]: УЦП-25
+    - button "Выйти" [ref=f2e30] [cursor=pointer]
+  - navigation [ref=f2e32]:
+    - button "Расписание" [active] [ref=f2e33] [cursor=pointer]
+    - button "Оценки" [ref=f2e34] [cursor=pointer]
+  - generic [ref=f2e87]:
+    - generic [ref=f2e88]:
+      - button "Всё" [ref=f2e89] [cursor=pointer]
+      - button "Пара" [ref=f2e90] [cursor=pointer]
+      - button "Аттестация" [ref=f2e91] [cursor=pointer]
+      - button "Дедлайн" [ref=f2e92] [cursor=pointer]
+    - generic [ref=f2e93]:
+      - heading "понедельник, 9 февраля" [level=3] [ref=f2e94]
+      - article [ref=f2e95]:
+        - generic [ref=f2e96]:
+          - generic [ref=f2e97]: Пара
+          - generic [ref=f2e99]: 19:00–20:20
+        - generic [ref=f2e100]: Математика
+        - generic [ref=f2e101]: Сидоров · РАНХиГС
+    - generic [ref=f2e102]:
+      - heading "вторник, 10 февраля" [level=3] [ref=f2e103]
+      - article [ref=f2e104]:
+        - generic [ref=f2e105]:
+          - generic [ref=f2e106]: Пара
+          - generic [ref=f2e108]: 19:00–20:20
+        - generic [ref=f2e109]: Физика
+        - generic [ref=f2e110]: Козлова · Нетология
