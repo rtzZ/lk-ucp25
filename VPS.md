@@ -69,12 +69,14 @@ nano .env
 
 ## 4. Запуск через Docker Compose
 
+В новых версиях Docker Compose встроен как плагин. Используйте `docker compose` (без дефиса):
+
 ```bash
 # Запуск PostgreSQL и backend
-docker-compose up -d
+docker compose up -d
 
 # Проверка статуса контейнеров
-docker-compose ps
+docker compose ps
 ```
 
 Backend автоматически запустится с `uvicorn` (конфигурация в `backend/pyproject.toml`).
@@ -193,8 +195,8 @@ services:
 ```bash
 cd ~/lk
 git pull origin master
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 cd frontend && npm install && npm run build
 sudo systemctl reload nginx
 ```
