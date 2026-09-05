@@ -15,7 +15,7 @@ export default function Login({ onLogin }: Props) {
   const [group, setGroup] = useState("УЦП-25");
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
-  const [telegramUserId, setTelegramUserId] = useState("");
+  const [telegramUsername, setTelegramUsername] = useState("");
   const [telegramCode, setTelegramCode] = useState("");
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<Student[]>([]);
@@ -48,7 +48,7 @@ export default function Login({ onLogin }: Props) {
   const requestTelegramCode = async () => {
     setError("");
     try {
-      const data = await api.telegramRequestCode(telegramUserId.trim());
+      const data = await api.telegramRequestCode(telegramUsername.trim());
       if (data.code_sent) {
         setCodeSent(true);
         setError("Код отправлен. Введите его ниже (действует 60 сек).");
@@ -64,7 +64,7 @@ export default function Login({ onLogin }: Props) {
     setError("");
     setSuggestions([]);
     try {
-      const student = await api.telegramLogin(telegramUserId.trim(), telegramCode.trim());
+      const student = await api.telegramLogin(telegramUsername.trim(), telegramCode.trim());
       onLogin(student, group);
     } catch (e: any) {
       setError(e.message || "Ошибка входа. Проверьте код.");
@@ -111,14 +111,14 @@ export default function Login({ onLogin }: Props) {
       <div style={{ marginTop: "20px", borderTop: "1px solid #eee", paddingTop: "20px" }}>
         <h3>Вход через Telegram</h3>
         <p style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
-          Для входа введите ваш Telegram user_id (получить через @userinfobot)
+          Для входа введите ваш Telegram username (например, @ivanov_ivan)
         </p>
-        <label htmlFor="telegram-userid">Telegram user_id</label>
+        <label htmlFor="telegram-username">Telegram username</label>
         <Textfield
-          id="telegram-userid"
-          value={telegramUserId}
-          onChange={(e) => setTelegramUserId((e.target as HTMLInputElement).value)}
-          placeholder="123456789"
+          id="telegram-username"
+          value={telegramUsername}
+          onChange={(e) => setTelegramUsername((e.target as HTMLInputElement).value)}
+          placeholder="@username"
           style={{ marginTop: "8px" }}
         />
         {codeSent && (
@@ -141,7 +141,7 @@ export default function Login({ onLogin }: Props) {
         )}
         {!codeSent && (
           <div className="actions" style={{ marginTop: "12px" }}>
-            <Button appearance="primary" onClick={requestTelegramCode} isDisabled={!telegramUserId.trim()}>
+            <Button appearance="primary" onClick={requestTelegramCode} isDisabled={!telegramUsername.trim()}>
               Получить код
             </Button>
           </div>
