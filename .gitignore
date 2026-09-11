@@ -1,0 +1,29 @@
+# Секреты и локальное окружение
+.env
+!.env.example
+
+# Данные (в т.ч. персональные) — никогда в репозиторий
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+
+# Система и инструменты
+.DS_Store
+.playwright-mcp/
+.vite/

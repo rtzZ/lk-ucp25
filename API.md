@@ -1,0 +1,103 @@
+# API
+
+База: `http://localhost:8001`. Все ответы — JSON. Ошибки: `{"detail": ...}`.
+Интерактивная документация: `/docs`.
+Перебор `/auth/*` ограничен rate limiter'ом с IP (login 30/мин, запрос кода
+5/мин, вход по коду 10/мин) — сверх лимита `429`.
+
+## `POST /auth/login` — вход
+
+Вход — идентификация себя (пароля нет, данные общие).
+
+Тело: `{"last_name": "Иванов", "first_name": "Иван"}` (имя опционально).
+
+- `200` → `{"student": {...}, "suggestions": []}`.
+- Точного совпадения нет, но фамилия единственная → `200` с этим студентом.
+- `404` → `{"detail": {"message": "Студент не найден, уточните имя",
+  "suggestions": [...]}}` — однофамильцы кнопками.
+
+`Student`: `id, group, code, last_name, first_name, full_name`.
+
+## `POST /auth/telegram_request_code` — код в ЛС бота
+
+Тело: `{"telegram_username": "@nick", "code": ""}`. Проверяет членство
+в группе через Bot API и отправляет 6-значный код (TTL 60с) личным сообщением.
+
+- `200` → `{"code_sent": true}` либо `{"error": "..."}` (не настроен /
+  не найден / не в группе / не удалось отправить).
+- Без `TELEGRAM_BOT_TOKEN`/`TELEGRAM_GROUP_ID` в окружении — всегда ошибка
+  «не настроен».
+
+## `POST /auth/telegram_login` — вход по коду
+
+Тело: `{"telegram_username": "@nick", "code": "123456"}`.
+
+- `200` → `{"student": {...}}`.
+- `400` — нет кода / истёк / неверный; `404` — студент не найден;
+  `503` — Telegram-вход не настроен.
+
+## `GET /students` — список группы
+
+`?group=УЦП-25` (по умолчанию `УЦП-25`). Сортировка по фамилии/имени.
+Используется экраном входа.
+
+## `GET /students/{id}` — карточка
+
+`404` — `{"detail": "Студент не найден"}`.
+
+## `GET /schedule/groups` — группы
+
+Имена групп, у которых есть записи расписания. `["УЦП-25", "ЛФТ-25"]`.
+
+## `GET /schedule` — расписание
+
+Параметры: `group` (по умолчанию `УЦП-25`), `date_from`/`date_to` (ISO
+`YYYY-MM-DD`), `kind` (`lesson | attestation | event | deadline`).
+Сортировка: дата, время, id.
+
+Запись: `id, group, date, time_start, time_end, subject_text, teacher, org,
+lesson_no (nullable), kind, status (active|cancelled|moved|live|completed),
+note, link (только http(s), "" если нет)`.
+
+`live`/`completed` для активных записей считаются на лету при чтении
+(БД не меняется); персистентный перевод в `completed` делает фоновый джоб
+раз в `EXPIRE_INTERVAL_HOURS` (по умолчанию час).
+
+Пример: `/schedule?group=УЦП-25&date_from=2026-02-09&date_to=2026-02-15`.
+
+## `GET /grades` — оценки студента
+
+Параметры: `student_id` (обязателен), `semester` (опционален, точное имя
+листа, например `1 семестр 25-26`). Сортировка: семестр, предмет.
+
+Оценка: `id, subject, semester, attestation (экзамен|зачет|зачет с оценкой|""),
+value (как в ведомости: "5", "зачтено", баллы), verbal, ects, score (nullable),
+description` (см. `GET /subjects`).
+
+## `GET /subjects` — описание предмета
+
+`?name=` — свободное название (для расписания подходит `subject_text`
+с суффиксом организации). Матчинг: точное → нормализованное (регистр,
+`ё`, `«(по выбору)»`) → префикс → подстрока. `404` — нет в базе.
+
+`Subject`: `id, name, description` — описание из Figma-макета
+(`about` — «Описание дисциплины», `skills_title`/`skills` — «Чему вы
+научитесь», `content_title`/`content` — «Содержание …»; всё пусто —
+предмета нет в макете, фронт показывает заглушку).
+
+## `GET /health`
+
+`{"status": "ok"}`.
+
+## Логирование
+
+Каждый запрос пишется в stderr одной JSON-строкой (`loguru serialize=True`):
+
+```json
+{"text": "... | INFO | app.main:log_requests:54 - http_request\n",
+ "record": {"extra": {"method": "GET", "path": "/health", "status": 200,
+  "elapsed_ms": 35.6}, ...}}
+```
+
+Ошибки парсинга (`sync.py`) и запуски/падения фоновых задач — тем же логгером
+с контекстом (`[оценки]`, `[расписание]`).

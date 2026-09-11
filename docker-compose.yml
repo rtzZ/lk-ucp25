@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lk}
+      POSTGRES_DB: ${POSTGRES_DB:-lk}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432" # только локально, не в интернет
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lk}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env # DATABASE_URL, YANDEX_*_URL, FRONTEND_URL, TELEGRAM_*, ...
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://lk:${POSTGRES_PASSWORD:-lk}@db:5432/${POSTGRES_DB:-lk}}
+      CHROMIUM_NO_SANDBOX: "1" # контейнер без SYS_ADMIN
+    ports:
+      - "127.0.0.1:8001:8001" # наружу — только через nginx
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
