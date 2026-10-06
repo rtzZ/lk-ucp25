@@ -23,10 +23,13 @@ login_limit = rate_limit("auth-login", limit=30, window_s=60)
 code_request_limit = rate_limit("auth-code-request", limit=5, window_s=60)
 code_login_limit = rate_limit("auth-code-login", limit=10, window_s=60)
 
-# Временные коды Telegram: user_id -> (code, expires_monotonic).
+# Временные коды Telegram: user_id -> [code, expires_monotonic, неверных попыток].
 # Процесс локальный — при рестарте коды сгорают, для мультиинстанса нужен Redis.
-_temp_codes: dict[str, tuple[str, float]] = {}
+_temp_codes: dict[str, list] = {}
 _CODE_TTL_S = 60
+# Лимит неверных вводов на один код: IP-лимит обходится сменой адреса,
+# а этот — нет (после N ошибок код сгорает, нужен новый через бота).
+_CODE_MAX_ATTEMPTS = 5
 
 
 def _bot_token() -> str:
@@ -124,7 +127,7 @@ async def telegram_request_code(body: TelegramLoginIn, request: Request,
                 return TelegramLoginOut(error="Пользователь не состоит в группе. Проверьте подписку на канал/группу.")
 
             # Генерируем код и отправляем в личные сообщения
-            code = f"{secrets.randbelow(10_000_000):06d}"
+            code = f"{secrets.randbelow(1_000_000):06d}"
             send = await client.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
                 json={"chat_id": student.telegram_user_id,
@@ -139,7 +142,7 @@ async def telegram_request_code(body: TelegramLoginIn, request: Request,
 
     now = time.monotonic()
     _purge_codes(now)
-    _temp_codes[str(student.telegram_user_id)] = (code, now + _CODE_TTL_S)
+    _temp_codes[str(student.telegram_user_id)] = [code, now + _CODE_TTL_S, 0]
     return TelegramLoginOut(code_sent=True)
 
 
@@ -172,12 +175,17 @@ async def telegram_login(body: TelegramLoginIn, request: Request,
     if entry is None:
         raise HTTPException(status_code=400, detail="Код не найден. Запросите новый.")
 
-    stored_code, expires_at = entry
+    stored_code, expires_at, _ = entry
     if time.monotonic() > expires_at:
         del _temp_codes[user_id_str]
         raise HTTPException(status_code=400, detail="Код истёк. Запросите новый.")
 
-    if not hmac.compare_digest(body.code, stored_code):
+    if not hmac.compare_digest(body.code.encode(), stored_code.encode()):
+        entry[2] += 1
+        if entry[2] >= _CODE_MAX_ATTEMPTS:
+            del _temp_codes[user_id_str]
+            raise HTTPException(status_code=400,
+                                detail="Слишком много неверных попыток. Запросите новый код.")
         raise HTTPException(status_code=400, detail="Неверный код.")
 
     del _temp_codes[user_id_str]

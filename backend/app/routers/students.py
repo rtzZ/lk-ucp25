@@ -26,6 +26,28 @@ async def list_students(group: str = "УЦП-25",
             for s, g in rows]
 
 
+@router.get("/by_code", response_model=StudentOut)
+async def get_student_by_code(code: str,
+                              session: AsyncSession = Depends(get_session)):
+    """Студент по стабильному коду «фамилия имя».
+
+    Клиент перепроверяет сохранённого студента: id в localStorage мог
+    устареть, code — нет. Объявлен до /{student_id}, иначе перехват.
+    """
+    row = (await session.execute(
+        select(Student, Group.name)
+        .join(Group, Student.group_id == Group.id)
+        .where(Student.code == code)
+    )).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Студент не найден")
+    student, group_name = row
+    return StudentOut(id=student.id, group=group_name, code=student.code,
+                      last_name=student.last_name,
+                      first_name=student.first_name,
+                      full_name=student.full_name)
+
+
 @router.get("/{student_id}", response_model=StudentOut)
 async def get_student(student_id: int,
                       session: AsyncSession = Depends(get_session)):

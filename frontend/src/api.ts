@@ -86,6 +86,13 @@ export const api = {
   groups: () => get<string[]>("/schedule/groups"),
   students: (group: string) =>
     get<Student[]>(`/students?group=${encodeURIComponent(group)}`),
+  /** Студент по стабильному code; null — больше нет в ведомости (404). */
+  studentByCode: async (code: string): Promise<Student | null> => {
+    const r = await req(`/students/by_code?code=${encodeURIComponent(code)}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`${r.status} /students/by_code`);
+    return r.json() as Promise<Student>;
+  },
   login: async (last_name: string, first_name: string) => {
     const r = await postJson("/auth/login", { last_name, first_name });
     const body = await r.json();

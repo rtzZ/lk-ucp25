@@ -117,3 +117,30 @@ test("drawer предмета в таблице оценок", async ({ page }) 
   await page.getByRole("dialog").getByRole("button", { name: "Close drawer" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("устаревший id в localStorage сверяется по code", async ({ page }) => {
+  await login(page);
+  // Имитация синка, сменившего id: в сохранённом студенте чужой id.
+  const real = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("lk-student")!);
+    localStorage.setItem("lk-student", JSON.stringify({ ...s, id: 999999 }));
+    return s.id as number;
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Оценки" }).click();
+  await expect(page.getByText("Средний балл: 5.00")).toBeVisible();
+  const stored = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("lk-student")!).id as number
+  );
+  expect(stored).toBe(real);
+});
+
+test("студент, пропавший из ведомости, разлогинивается", async ({ page }) => {
+  await login(page);
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("lk-student")!);
+    localStorage.setItem("lk-student", JSON.stringify({ ...s, code: "нет такого" }));
+  });
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "Фамилия" })).toBeVisible();
+});

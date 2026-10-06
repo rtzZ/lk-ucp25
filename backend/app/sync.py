@@ -712,32 +712,37 @@ async def _delete_orphan_groups(session) -> None:
 
 
 async def upsert_grades(students: list[dict], grades: list[dict], session) -> int:
-    """Полная замена студентов и оценок. Возвращает число оценок.
+    """Замена оценок и upsert студентов по code. Возвращает число оценок.
 
     Пустой результат парсинга — БД не трогается (защита от смены формата).
-    Telegram-привязки (username/user_id) переносятся со старых строк
-    студентов: ведомость их не содержит, wipe их бы затёр и сломал
-    Telegram-вход после каждой синхронизации.
+    Студенты обновляются на месте, а не пересоздаются: Student.id хранится
+    на клиенте (localStorage), и после wipe+insert старый id указывал бы
+    на другого студента. Telegram-привязки при этом сохраняются сами.
+    Студенты, пропавшие из ведомости, удаляются.
     """
     if not students and not grades:
         logger.error("Пустой результат парсинга успеваемости — БД не тронута")
         return 0
     await session.execute(delete(Grade))
-    tg = {code: (un, uid) for code, un, uid in
-          (await session.execute(
-              select(Student.code, Student.telegram_username,
-                     Student.telegram_user_id))).all()}
-    await session.execute(delete(Student))
+    existing = {st.code: st for st in
+                (await session.execute(select(Student))).scalars()}
+    incoming = {s["code"] for s in students}
+    gone = [code for code in existing if code not in incoming]
+    if gone:
+        await session.execute(delete(Student).where(Student.code.in_(gone)))
     group = await _get_or_create(session, Group, name="УЦП-25")
     by_code: dict[str, Student] = {}
     for s in students:
         g = group if s["group"] == "УЦП-25" else await _get_or_create(
             session, Group, name=s["group"])
-        telegram_username, telegram_user_id = tg.get(s["code"], (None, None))
-        st = Student(group_id=g.id, telegram_username=telegram_username,
-                     telegram_user_id=telegram_user_id,
-                     **{k: v for k, v in s.items() if k != "group"})
-        session.add(st)
+        st = existing.get(s["code"])
+        if st is None:
+            st = Student(code=s["code"])
+            session.add(st)
+        st.group_id = g.id
+        st.last_name = s["last_name"]
+        st.first_name = s["first_name"]
+        st.full_name = s["full_name"]
         by_code[s["code"]] = st
     await session.flush()
     subjects: dict[str, Subject] = {}

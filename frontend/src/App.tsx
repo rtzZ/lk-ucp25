@@ -7,7 +7,7 @@ import ThemeIcon from "@atlaskit/icon/core/theme";
 import Grades from "./screens/Grades";
 import Login from "./screens/Login";
 import Schedule from "./screens/Schedule";
-import type { Student } from "./api";
+import { api, type Student } from "./api";
 import {
   applyTheme,
   cycleTheme,
@@ -32,6 +32,35 @@ export default function App() {
   );
   const [tab, setTab] = useState<"schedule" | "grades">("schedule");
   const [theme, setTheme] = useState<ThemeMode>(storedTheme);
+  // Студент из localStorage не проверен: его id мог устареть после
+  // синхронизации, поэтому оценки грузим только после сверки по code.
+  const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    if (!student) return;
+    let cancelled = false;
+    api
+      .studentByCode(student.code)
+      .then((fresh) => {
+        if (cancelled) return;
+        if (fresh === null) {
+          logout(); // студента больше нет в ведомости
+          return;
+        }
+        setStudent(fresh);
+        localStorage.setItem("lk-student", JSON.stringify(fresh));
+        setVerified(true);
+      })
+      .catch(() => {
+        // Нет связи — показываем сохранённое; Grades сам покажет ошибку.
+        if (!cancelled) setVerified(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Сверка только при старте; после входа данные свежие.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     saveTheme(theme);
@@ -40,6 +69,7 @@ export default function App() {
 
   const login = (s: Student, g: string) => {
     setStudent(s);
+    setVerified(true);
     setGroup(g);
     localStorage.setItem("lk-student", JSON.stringify(s));
     localStorage.setItem("lk-group", g);
@@ -97,7 +127,13 @@ export default function App() {
           Оценки
         </button>
       </nav>
-      {tab === "schedule" ? <Schedule group={group} /> : <Grades student={student} />}
+      {tab === "schedule" ? (
+        <Schedule group={group} />
+      ) : verified ? (
+        <Grades student={student} />
+      ) : (
+        <p className="meta">Загрузка…</p>
+      )}
     </main>
   );
 }

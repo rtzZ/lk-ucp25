@@ -317,8 +317,10 @@ def test_live_status_in_api(client):
     import asyncio
     import datetime
 
+    from app.routers.schedule import _now
+
     async def run():
-        now = datetime.datetime.now()
+        now = _now()
         today = now.strftime("%Y-%m-%d")
         start = (now - datetime.timedelta(minutes=5)).strftime("%H:%M")
         end = (now + datetime.timedelta(minutes=10)).strftime("%H:%M")
@@ -584,3 +586,164 @@ def test_upsert_grades_dedupes():
         await eng.dispose()
 
     asyncio.run(run())
+
+
+def test_now_uses_cabinet_timezone(monkeypatch):
+    """_now() — время пояса кабинета, а не сервера (в Docker там UTC)."""
+    import datetime
+    from zoneinfo import ZoneInfo
+
+    from app.routers.schedule import _now
+
+    monkeypatch.setenv("SYNC_TIMEZONE", "Asia/Vladivostok")
+    want = datetime.datetime.now(ZoneInfo("Asia/Vladivostok")).replace(tzinfo=None)
+    assert _now().tzinfo is None
+    assert abs((_now() - want).total_seconds()) < 5
+
+
+def test_upsert_grades_keeps_student_ids():
+    """Повторный синк не меняет Student.id; ушедшие удаляются, новые — добавляются."""
+    import asyncio
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.sync import upsert_grades
+
+    eng = create_async_engine("sqlite+aiosqlite://")
+    S = async_sessionmaker(eng, expire_on_commit=False)
+
+    def st(code, last, first):
+        return {"group": "УЦП-25", "code": code, "last_name": last,
+                "first_name": first, "full_name": f"{last} {first}"}
+
+    def gr(code):
+        return {"student_code": code, "subject": "Математика",
+                "semester": "1 семестр 25-26", "attestation": "экзамен",
+                "value": "5", "verbal": "Отлично", "ects": "A", "score": 92.0}
+
+    async def ids(s):
+        return {x.code: x.id for x in (await s.execute(select(Student))).scalars()}
+
+    async def run():
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        first = [st("иванов иван", "Иванов", "Иван"),
+                 st("петров петр", "Петров", "Петр")]
+        async with S() as s:
+            await upsert_grades(first, [gr("иванов иван"), gr("петров петр")], s)
+            before = await ids(s)
+        second = [st("петров петр", "Петров", "Петр"),
+                  st("сидоров сидор", "Сидоров", "Сидор")]
+        async with S() as s:
+            assert await upsert_grades(
+                second, [gr("петров петр"), gr("сидоров сидор")], s) == 2
+            after = await ids(s)
+            assert after["петров петр"] == before["петров петр"]
+            assert "иванов иван" not in after
+            assert set(after) == {"петров петр", "сидоров сидор"}
+            owners = {g.student_id for g in
+                      (await s.execute(select(Grade))).scalars()}
+            assert owners == set(after.values())
+        await eng.dispose()
+
+    asyncio.run(run())
+
+
+def test_student_by_code(client):
+    """/students/by_code: по стабильному коду, неизвестный — 404."""
+    r = client.get("/students/by_code", params={"code": "иванов иван"})
+    assert r.status_code == 200
+    assert r.json()["id"] == client.ids[0]
+    assert client.get("/students/by_code",
+                      params={"code": "нет такого"}).status_code == 404
+
+
+def _telegram_student(username: str, user_id: int) -> None:
+    """Студент с telegram-привязкой в общей тестовой БД."""
+    import asyncio
+
+    async def run():
+        async with TestSession() as s:
+            gid = (await s.execute(select(Group).where(
+                Group.name == "УЦП-25"))).scalar_one().id
+            s.add(Student(group_id=gid, code=f"tg {username}",
+                          last_name="Тг", first_name=username,
+                          full_name=f"Тг {username}",
+                          telegram_username=username, telegram_user_id=user_id))
+            await s.commit()
+
+    asyncio.run(run())
+
+
+def test_telegram_code_is_six_digits(client, monkeypatch):
+    """Код — строго 6 цифр (randbelow(10**6)), уходит в ЛС и запоминается."""
+    import app.routers.auth as auth_mod
+    from app import ratelimit
+
+    ratelimit.reset()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_GROUP_ID", "-100")
+    _telegram_student("@six_digits", 777001)
+    bounds = []
+    real = auth_mod.secrets.randbelow
+    monkeypatch.setattr(auth_mod.secrets, "randbelow",
+                        lambda n: bounds.append(n) or real(n))
+
+    class Resp:
+        def __init__(self, data):
+            self._data = data
+
+        def json(self):
+            return self._data
+
+    class FakeClient:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, *a, **kw):
+            return Resp({"ok": True, "result": {"status": "member"}})
+
+        async def post(self, *a, **kw):
+            return Resp({"ok": True})
+
+    monkeypatch.setattr(auth_mod.httpx, "AsyncClient", FakeClient)
+    r = client.post("/auth/telegram_request_code",
+                    json={"telegram_username": "@six_digits", "code": ""})
+    assert r.json()["code_sent"] is True
+    assert bounds == [1_000_000]
+    code = auth_mod._temp_codes["777001"][0]
+    assert len(code) == 6 and code.isdigit()
+    r = client.post("/auth/telegram_login",
+                    json={"telegram_username": "@six_digits", "code": code})
+    assert r.status_code == 200 and r.json()["student"]["code"] == "tg @six_digits"
+    ratelimit.reset()
+
+
+def test_telegram_code_burns_after_attempts(client, monkeypatch):
+    """После _CODE_MAX_ATTEMPTS неверных вводов код сгорает (даже верный)."""
+    import time
+
+    import app.routers.auth as auth_mod
+    from app import ratelimit
+
+    ratelimit.reset()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_GROUP_ID", "-100")
+    _telegram_student("@brute", 777002)
+    auth_mod._temp_codes["777002"] = ["123456", time.monotonic() + 60, 0]
+    body = {"telegram_username": "@brute", "code": "000000"}
+    for _ in range(auth_mod._CODE_MAX_ATTEMPTS - 1):
+        r = client.post("/auth/telegram_login", json=body)
+        assert r.json()["detail"] == "Неверный код."
+    r = client.post("/auth/telegram_login", json=body)
+    assert "Слишком много" in r.json()["detail"]
+    assert "777002" not in auth_mod._temp_codes
+    r = client.post("/auth/telegram_login",
+                    json={"telegram_username": "@brute", "code": "123456"})
+    assert r.status_code == 400 and "не найден" in r.json()["detail"]
+    ratelimit.reset()

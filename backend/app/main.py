@@ -3,7 +3,6 @@
 import os
 import time
 from contextlib import asynccontextmanager
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +10,7 @@ from loguru import logger
 
 from .logging import setup_logging
 from .routers import auth, grades, schedule, students, subjects
+from .tz import local_tz as _resolve_tz
 
 setup_logging()
 
@@ -52,7 +52,6 @@ def _int_env(name: str, default: int) -> int:
 
 
 DEFAULT_SYNC_TIMES = "09:30,11:00"
-DEFAULT_TIMEZONE = "Europe/Moscow"
 
 
 def _parse_sync_times(raw: str) -> list[tuple[int, int]]:
@@ -69,16 +68,6 @@ def _parse_sync_times(raw: str) -> list[tuple[int, int]]:
         else:
             logger.warning(f"SYNC_TIMES: пропуск невалидного {part.strip()!r}")
     return out
-
-
-def _resolve_tz() -> ZoneInfo:
-    """Часовой пояс из SYNC_TIMEZONE; мусор — warning + Москва."""
-    name = os.getenv("SYNC_TIMEZONE", DEFAULT_TIMEZONE)
-    try:
-        return ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
-        logger.warning(f"SYNC_TIMEZONE {name!r} неизвестен, использую {DEFAULT_TIMEZONE}")
-        return ZoneInfo(DEFAULT_TIMEZONE)
 
 
 @asynccontextmanager

@@ -9,13 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import Group, ScheduleItem
 from ..schemas import ScheduleItemOut
+from ..tz import local_tz
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
 
 def _now() -> _dt.datetime:
-    """Локальное время сервера (пары в таблицах указаны в локальном поясе)."""
-    return _dt.datetime.now().replace(microsecond=0)
+    """Текущее время в поясе кабинета (SYNC_TIMEZONE), naive.
+
+    Не время сервера: в Docker оно UTC, и live/completed съезжали бы на 3 ч.
+    """
+    return _dt.datetime.now(local_tz()).replace(microsecond=0, tzinfo=None)
 
 
 def _is_in_progress(date: str, time_start: str, time_end: str,
