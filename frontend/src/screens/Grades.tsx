@@ -78,6 +78,20 @@ function ectsCell(g: Grade): ReactNode {
 
 const CLEAR_ALL = "__clear__";
 
+const NARROW_QUERY = "(max-width: 560px)";
+
+/** Узкий экран (телефон): таблица не влезает — показываем карточки. */
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
 export default function Grades({ student }: { student: Student }) {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,6 +169,29 @@ export default function Grades({ student }: { student: Student }) {
     : "—";
 
   const hasFilter = Object.values(filters).some((v) => v.length > 0);
+  const narrow = useNarrow();
+  const emptyText = hasFilter ? "Нет оценок по фильтру." : "Оценок пока нет.";
+
+  const subjectLink = (g: Grade) => (
+    <span
+      role="button"
+      tabIndex={0}
+      className="subject-link"
+      onClick={() => setSelectedSubject(g.subject)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setSelectedSubject(g.subject);
+        }
+      }}
+    >
+      {g.subject}
+    </span>
+  );
+
+  const gradeLozenge = (g: Grade) => (
+    <Lozenge appearance={gradeAppearance(g.value)}>{gradeLabel(g)}</Lozenge>
+  );
 
   const headCell = (key: SortKey) => (
     <span className="head-merged">
@@ -207,42 +244,52 @@ export default function Grades({ student }: { student: Student }) {
         <Lozenge appearance="success" isBold>Средний балл: {avg}</Lozenge>
       </div>
       {loadError && <p className="error">{loadError}</p>}
-      <DynamicTableStateless
-        head={{ cells: columns.map((key) => ({ key, content: headCell(key) })) }}
-        rows={visible.map((g) => ({
-          key: `grade-${g.id}`,
-          cells: [
-            { key: g.subject, content: (
-              <span
-                role="button"
-                tabIndex={0}
-                className="subject-link"
-                onClick={() => setSelectedSubject(g.subject)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedSubject(g.subject);
-                  }
-                }}
-              >
-                {g.subject}
-              </span>
-            )},
-            { key: g.semester, content: semesterNumeral(g.semester) },
-            { key: `${g.value}|${g.id}`, content: (
-              <Lozenge appearance={gradeAppearance(g.value)}>
-                {gradeLabel(g)}
-              </Lozenge>
-            )},
-            { key: g.ects, content: ectsCell(g) },
-          ],
-        }))}
-        rowsPerPage={50}
-        page={page}
-        onSetPage={setPage}
-        isLoading={loading}
-        emptyView={<p>{hasFilter ? "Нет оценок по фильтру." : "Оценок пока нет."}</p>}
-      />
+      {narrow ? (
+        <>
+          {/* Телефон: те же фильтры/сортировка строкой над карточками. */}
+          <div className="grade-toolbar">
+            {columns.map((key) => (
+              <span key={key}>{headCell(key)}</span>
+            ))}
+          </div>
+          {loading ? (
+            <p className="meta">Загрузка…</p>
+          ) : visible.length === 0 ? (
+            <p>{emptyText}</p>
+          ) : (
+            <ul className="grade-cards" aria-label="Оценки">
+              {visible.map((g) => (
+                <li key={g.id} className="grade-card">
+                  {subjectLink(g)}
+                  <div className="grade-card-meta">
+                    <SimpleTag text={`${semesterNumeral(g.semester)} семестр`} />
+                    {gradeLozenge(g)}
+                    {ectsCell(g)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <DynamicTableStateless
+          head={{ cells: columns.map((key) => ({ key, content: headCell(key) })) }}
+          rows={visible.map((g) => ({
+            key: `grade-${g.id}`,
+            cells: [
+              { key: g.subject, content: subjectLink(g) },
+              { key: g.semester, content: semesterNumeral(g.semester) },
+              { key: `${g.value}|${g.id}`, content: gradeLozenge(g) },
+              { key: g.ects, content: ectsCell(g) },
+            ],
+          }))}
+          rowsPerPage={50}
+          page={page}
+          onSetPage={setPage}
+          isLoading={loading}
+          emptyView={<p>{emptyText}</p>}
+        />
+      )}
       {selectedSubject && (
         <Drawer
           isOpen
@@ -262,9 +309,7 @@ export default function Grades({ student }: { student: Student }) {
                   .map((g) => (
                     <Inline key={g.id} space="space.100" alignBlock="center">
                       <SimpleTag text={semesterNumeral(g.semester)} />
-                      <Lozenge appearance={gradeAppearance(g.value)}>
-                        {gradeLabel(g)}
-                      </Lozenge>
+                      {gradeLozenge(g)}
                     </Inline>
                   ))}
               </Stack>

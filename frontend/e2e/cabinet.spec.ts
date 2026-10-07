@@ -105,19 +105,6 @@ test("drawer занятия со ссылкой на подключение", as
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
-test.use({ viewport: { width: 390, height: 844 } });
-test("мобильный вход и расписание без горизонтального скролла", async ({
-  page,
-}) => {
-  await login(page);
-  await showAll(page);
-  await expect(page.getByText("Физика").first()).toBeVisible();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  );
-  expect(overflow).toBe(0);
-});
-
 test("drawer предмета в таблице оценок", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Оценки" }).click();
@@ -159,4 +146,43 @@ test("без токена данные не отдаются", async ({ request 
   for (const path of ["/grades", "/schedule", "/auth/me"]) {
     expect((await request.get(api + path)).status()).toBe(401);
   }
+});
+
+test.describe("телефон 390px", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("мобильный вход и расписание без горизонтального скролла", async ({
+    page,
+  }) => {
+    await login(page);
+    await showAll(page);
+    await expect(page.getByText("Физика").first()).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBe(0);
+  });
+
+  test("оценки карточками: без скролла вбок, фильтр и drawer работают", async ({
+    page,
+  }) => {
+    await login(page);
+    await page.getByRole("button", { name: "Оценки" }).click();
+    const cards = page.getByRole("list", { name: "Оценки" }).getByRole("listitem");
+    await expect(cards).toHaveCount(2);
+    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(cards.filter({ hasText: "Математика" })).toContainText("5 · Отлично");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBe(0);
+    // фильтр по оценке из строки над карточками
+    await page.getByRole("button", { name: "Фильтр: Оценка" }).click();
+    await page.getByRole("option", { name: "5" }).click();
+    await page.keyboard.press("Escape");
+    await expect(cards).toHaveCount(1);
+    // карточка открывает drawer предмета
+    await cards.first().getByRole("button", { name: "Математика" }).click();
+    await expect(page.getByRole("dialog")).toContainText("Математика");
+  });
 });
