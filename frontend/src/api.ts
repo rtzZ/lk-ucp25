@@ -35,6 +35,23 @@ export interface Grade {
   ects: string;
   score: number | null;
   description: SubjectDescription;
+  /** Разбор по официальной шкале (backend app/grading.py). */
+  five: number | null;
+  passed: boolean | null;
+  label: string;
+  ects_letter: string;
+  ects_source: "" | "sheet" | "score";
+  status: "final" | "provisional" | "in_progress" | "none";
+  mismatch: string;
+}
+
+export interface ScaleBand {
+  lo: number;
+  hi: number;
+  traditional: string;
+  five: number;
+  passed: boolean;
+  ects: string;
 }
 
 export interface ScheduleItem {
@@ -181,6 +198,7 @@ export const api = {
       "/schedule" + (kind ? `?kind=${encodeURIComponent(kind)}` : "")
     ),
   grades: () => get<Grade[]>("/grades"),
+  gradingScale: () => get<ScaleBand[]>("/grades/scale"),
   subject: (name: string) =>
     get<Subject>(`/subjects?name=${encodeURIComponent(name)}`),
 };

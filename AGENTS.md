@@ -46,10 +46,11 @@ cd frontend; npm.cmd run test:e2e
 ## Данные и синхронизация
 
 - `YANDEX_SCHEDULE_URL` и `YANDEX_GRADES_URL` — edit-ссылки таблиц Яндекс.Диска.
-- APScheduler запускает `sync_all()` дважды в сутки — в 09:30 и 11:00 МСК (`SYNC_TIMES`, `SYNC_TIMEZONE`).
+- APScheduler запускает `sync_all()` каждый час в :00 МСК (`SYNC_TIMES=*:00`, `SYNC_TIMEZONE`); конкретные часы — `SYNC_TIMES=09:30,11:00`.
 - Пустые `YANDEX_*_URL` — пропуск с warning. Недоступные ссылки — ошибка в лог, API отдаёт старые данные.
 - `_sync_job` глотает все исключения (планировщик обязан пережить всё).
 - Пустая оценка в ведомости = «оценки ещё нет» (`value=""`), не «2».
+- Шкала оценивания — только `backend/app/grading.py` (официальная таблица); фронт берёт разбор из API (`five/passed/ects_letter/status/mismatch`), ведомость не исправляет — расхождения помечает.
 - Синк не применяется, если данных стало < `SYNC_MIN_RATIO` (0.5) от прежнего; принудительно — `python -m app.admin sync --force`.
 
 ## Правила работы

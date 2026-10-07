@@ -196,23 +196,10 @@ export default function Schedule({ group }: { group: string }) {
 
   return (
     <div>
-      {liveItems.length > 0 && (
-        <div className="live-banner" role="status">
-          <span className="live-dot" />
-          <div>
-            <div className="live-title">Идёт сейчас</div>
-            <div className="live-subject">
-              {liveItems
-                .map((it) => `${it.subject_text} (${it.time_start}–${it.time_end})`)
-                .join(", ")}
-            </div>
-          </div>
-        </div>
-      )}
       <div className="schedule-top">
         <label className="toggle-row">
           <Toggle
-            label="Актуальное расписание"
+            label="Актуальное"
             isChecked={upcomingOnly}
             onChange={(e) =>
               setUpcomingOnly((e.target as HTMLInputElement).checked)
@@ -226,6 +213,20 @@ export default function Schedule({ group }: { group: string }) {
           </Button>
         )}
       </div>
+      {/* Баннер — под тумблером: тумблер на одном месте с вкладкой «Оценки». */}
+      {liveItems.length > 0 && (
+        <div className="live-banner" role="status">
+          <span className="live-dot" />
+          <div>
+            <div className="live-title">Идёт сейчас</div>
+            <div className="live-subject">
+              {liveItems
+                .map((it) => `${it.subject_text} (${it.time_start}–${it.time_end})`)
+                .join(", ")}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="filters" role="group" aria-label="Тип записи">
         {KIND_FILTERS.map((f) => (
           <button

@@ -37,7 +37,7 @@ async def seed_demo() -> None:
         session.add_all([
             Grade(student_id=st["иванов иван"], subject_id=subj["Математика"],
                   semester="1 семестр 25-26", attestation="экзамен",
-                  value="5", verbal="Отлично", ects="A", score=92.0),
+                  value="5", verbal="Отлично", ects="A", score=96.0),
             Grade(student_id=st["иванов иван"], subject_id=subj["Физика"],
                   semester="1 семестр 25-26", attestation="зачет",
                   value="зачтено", verbal="", ects="Passed", score=75.0),

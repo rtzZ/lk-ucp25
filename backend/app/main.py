@@ -55,23 +55,37 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
-DEFAULT_SYNC_TIMES = "09:30,11:00"
+# Каждый час в :00 (по SYNC_TIMEZONE). Конкретные часы — «09:30,11:00».
+DEFAULT_SYNC_TIMES = "*:00"
+
+SyncTime = tuple[int | str, int]  # (час 0-23 или "*" — каждый час, минута)
 
 
-def _parse_sync_times(raw: str) -> list[tuple[int, int]]:
-    """'09:30,11:00' -> [(9, 30), (11, 0)]. Мусор пропускается с warning."""
-    out: list[tuple[int, int]] = []
+def _parse_sync_times(raw: str) -> list[SyncTime]:
+    """'09:30,11:00' -> [(9, 30), (11, 0)]; '*:15' -> [('*', 15)] — каждый час.
+
+    Мусор пропускается с warning.
+    """
+    out: list[SyncTime] = []
     for part in (raw or "").split(","):
         m = part.strip().split(":")
-        if len(m) != 2 or not (m[0].isdigit() and m[1].isdigit()):
+        hour_ok = len(m) == 2 and (m[0] == "*" or m[0].isdigit())
+        if not (hour_ok and m[1].isdigit()):
             logger.warning(f"SYNC_TIMES: пропуск невалидного {part.strip()!r}")
             continue
-        hh, mm = int(m[0]), int(m[1])
-        if 0 <= hh <= 23 and 0 <= mm <= 59:
+        hh: int | str = "*" if m[0] == "*" else int(m[0])
+        mm = int(m[1])
+        if (hh == "*" or 0 <= hh <= 23) and 0 <= mm <= 59:
             out.append((hh, mm))
         else:
             logger.warning(f"SYNC_TIMES: пропуск невалидного {part.strip()!r}")
     return out
+
+
+def _sync_time_label(t: SyncTime) -> str:
+    """('*', 0) -> 'каждый час в :00'; (9, 30) -> '09:30'."""
+    hh, mm = t
+    return f"каждый час в :{mm:02d}" if hh == "*" else f"{hh:02d}:{mm:02d}"
 
 
 @asynccontextmanager
@@ -133,7 +147,7 @@ async def _scheduler():
     expire_hours = _int_env("EXPIRE_INTERVAL_HOURS", 1)
     if os.getenv("SYNC_INTERVAL_HOURS") is not None:
         logger.warning("SYNC_INTERVAL_HOURS больше не используется — "
-                       "время задаётся SYNC_TIMES (по умолчанию 09:30,11:00)")
+                       "время задаётся SYNC_TIMES (по умолчанию *:00 — каждый час)")
     if os.getenv("SKIP_SCHEDULER") == "1":
         # Тесты/E2E: фоновые задачи не нужны и могут выстрелить по cron.
         logger.info("Планировщик пропущен (SKIP_SCHEDULER=1)")
@@ -151,7 +165,7 @@ async def _scheduler():
     for hh, mm in times:
         scheduler.add_job(
             _sync_job, CronTrigger(hour=hh, minute=mm, timezone=tz),
-            id=f"sync-{hh:02d}{mm:02d}",
+            id=f"sync-{hh}-{mm:02d}",
             coalesce=True, max_instances=1, misfire_grace_time=3600,
         )
     scheduler.add_job(
@@ -159,7 +173,7 @@ async def _scheduler():
         coalesce=True, max_instances=1,
     )
     scheduler.start()
-    logger.info(f"Планировщик запущен: синхронизация {','.join(f'{h:02d}:{m:02d}' for h, m in times)} "
+    logger.info(f"Планировщик запущен: синхронизация {', '.join(map(_sync_time_label, times))} "
                 f"({tz.key}), завершение пар каждые {expire_hours} ч")
     yield
     scheduler.shutdown()

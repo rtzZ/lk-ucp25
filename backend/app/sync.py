@@ -811,6 +811,7 @@ async def upsert_grades(students: list[dict], grades: list[dict], session, *,
                           value=gr["value"], verbal=gr["verbal"],
                           ects=gr["ects"], score=gr["score"]))
         inserted += 1
+    _log_scale_mismatches(grades)
     await session.flush()
     await session.execute(delete(Subject).where(
         ~select(Grade.id).where(Grade.subject_id == Subject.id).exists()))
@@ -819,6 +820,17 @@ async def upsert_grades(students: list[dict], grades: list[dict], session, *,
     from .subject_descriptions import fill_subject_descriptions
     await fill_subject_descriptions(session)
     return inserted
+
+
+def _log_scale_mismatches(grades: list[dict]) -> None:
+    """Сводка «ведомость противоречит шкале» — чтобы учебная часть поправила."""
+    from .grading import mismatch
+
+    found = [(g["student_code"], g["subject"], m) for g in grades
+             if (m := mismatch(g["value"], g["ects"], g["score"]))]
+    if found:
+        examples = "; ".join(f"{c} / {s}: {m}" for c, s, m in found[:5])
+        logger.warning(f"Расхождений ведомости со шкалой: {len(found)}. {examples}")
 
 
 async def sync_source(name: str, edit_url: str, kind: str, *,

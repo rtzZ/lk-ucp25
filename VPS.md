@@ -88,7 +88,8 @@ docker compose logs -f app  # логи backend (JSON в stderr)
 curl http://localhost:8001/health  # {"status":"ok"}
 docker compose logs app | grep -E "бот|Планировщик"  # «Telegram-бот @… запущен»
 
-# Первая загрузка данных — сразу, не дожидаясь 09:30/11:00:
+# Первая загрузка данных — сразу, не дожидаясь ближайшего часа
+# (дальше — автоматически каждый час, SYNC_TIMES=*:00):
 docker compose exec app python -m app.admin sync
 ```
 

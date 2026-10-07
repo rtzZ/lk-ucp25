@@ -53,6 +53,21 @@ test("вкладка оценок", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Оценки" }).click();
   await expect(page.locator(".summary-value")).toHaveText("5.00");
+  // тумблер «Актуальное» — как на вкладке расписания; в сиде один семестр
+  await expect(page.locator(".toggle-row > span")).toHaveText("Актуальное");
+  await page.locator(".toggle-row").click({ force: true });
+  await expect(page.locator(".toggle-row")).toContainText("Все оценки");
+  await expect(page.getByRole("row", { name: /Математика/ })).toBeVisible();
+  // зачёт без буквы в ведомости: ECTS по баллам и шкале (75 -> C)
+  await expect(page.getByRole("row", { name: /Физика/ })).toContainText("C · 75");
+  await expect(page.getByRole("row", { name: /Физика/ })).toContainText("по баллам");
+  // легенда: официальная шкала, подсвечены строки с оценками студента
+  await page.getByRole("button", { name: "Шкала оценивания" }).click();
+  const scale = page.getByRole("dialog");
+  await expect(scale.getByRole("row")).toHaveCount(7); // шапка + 6 строк
+  await expect(scale.locator("tr.hit")).toHaveCount(2); // 96 (A) и 75 (C)
+  await expect(scale.getByRole("row", { name: /0–54/ })).toContainText("Не зачтено");
+  await page.keyboard.press("Escape");
   await expect(
     page.getByRole("cell", { name: "Математика" })
   ).toBeVisible();
@@ -207,6 +222,21 @@ test.describe("телефон 390px", () => {
     expect((await page.getByRole("dialog").boundingBox())!.x).toBe(0);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("тумблер «Актуальное» на одном месте в расписании и оценках", async ({
+    page,
+  }) => {
+    await login(page);
+    const at = async () => {
+      const r = (await page.locator(".toggle-row").boundingBox())!;
+      return [Math.round(r.x), Math.round(r.y)];
+    };
+    const schedule = await at();
+    await page.getByRole("button", { name: "Оценки" }).click();
+    await page.waitForTimeout(300); // вкладка перерисовалась
+    await expect(page.locator(".toggle-row > span")).toHaveText("Актуальное");
+    expect(await at()).toEqual(schedule);
   });
 
   test("фильтр «События» и тумблер периода", async ({ page }) => {

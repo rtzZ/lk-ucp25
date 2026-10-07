@@ -4,7 +4,7 @@
 
 ```
 Яндекс.Диск (2 публичные таблицы)
-        │  09:30 и 11:00 МСК, APScheduler 3.x (lifespan FastAPI)
+        │  каждый час в :00 МСК, APScheduler 3.x (lifespan FastAPI)
         ▼
 extract_downloader_url  — headless Chromium рендерит edit-страницу,
                           из HTML извлекается подписанный URL
@@ -102,8 +102,9 @@ FastAPI (auth, schedule, grades) --JSON--> React (Atlassian DS)
   удаляет).
 - `logging.py`: loguru `serialize=True` — каждая строка stderr это JSON;
   middleware в `main.py` пишет каждый запрос (`method/path/status/elapsed_ms`).
-- Планировщик: `AsyncIOScheduler`, синхронизация — два cron-триггера
-  (`SYNC_TIMES`, по умолчанию `09:30,11:00` в `SYNC_TIMEZONE=Europe/Moscow`;
+- Планировщик: `AsyncIOScheduler`, синхронизация — cron-триггеры из
+  `SYNC_TIMES` (по умолчанию `*:00` — каждый час в :00; `09:30,11:00` —
+  в заданные часы; время в `SYNC_TIMEZONE=Europe/Moscow`;
   `misfire_grace_time=3600`, `coalesce=True`, `max_instances=1`),
   завершение пар — `interval` (`EXPIRE_INTERVAL_HOURS`, по умолчанию час).
   `SKIP_SCHEDULER=1` отключает планировщик (тесты/E2E).
@@ -191,8 +192,20 @@ Vite + React 18 + TypeScript + Atlassian Design System (`button/new`,
   не CSS `capitalize`). Полоса семестра — только при его смене. Прошедшие/
   отменённые пары приглушаются токеном `text-subtle`, не `opacity`
   (контраст >= 4.5:1).
-- **Оценки** (`Grades.tsx`): сводка «Средний балл» (имя уже в шапке),
-  оценка — крупно и цветом (`GradeValue`), пустая — «Нет оценки».
+- **Оценки** (`Grades.tsx`, `components/GradeParts.tsx`): всё по официальной
+  шкале (`backend/app/grading.py`: 95–100 A … 55–64 E, 0–54 F; ≥ 55 —
+  зачтено) — фронт своих списков «что считать пятёркой» не держит, берёт
+  `five/passed/label/ects_letter/status/mismatch` из API. Средний балл —
+  по `five` итоговых оценок (в т.ч. записанных словом), рядом средний
+  100-балльный. Ведомость главнее шкалы: противоречие показывается «⚠» с
+  объяснением, не исправляется (сводка — warning в логе синка). Баллы без
+  оценки: закрытый семестр — «≈5 предварительно», текущий — полоска
+  прогресса с отметками шкалы и «до зачёта N». «Шкала оценивания» —
+  легенда (`GET /grades/scale`) с подсветкой строк студента. Тумблер
+  «Актуальное / Все оценки» (по умолчанию — актуальное: последний семестр
+  в ведомости) — на том же месте и с той же подписью, что «Актуальное /
+  Всё расписание»;
+  средний балл при этом считается по всем итоговым оценкам.
   Десктоп — `DynamicTableStateless` с фильтрами/сортировкой в шапке
   (иконки `sort-ascending/descending`), постранично; до 560px — карточки
   (предмет и детали слева, оценка справа), те же фильтры строкой.

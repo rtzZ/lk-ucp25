@@ -1,66 +1,35 @@
-/** Оценки студента: таблица Atlassian, шапка — единый popup-контрол:
- *  триггер с названием + popup с чекбоксами фильтра и стрелка сортировки. */
+/** Оценки студента по официальной шкале (разбор — backend, app/grading.py).
+ *  Десктоп — таблица Atlassian с фильтрами/сортировкой в шапке,
+ *  телефон — карточки. */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Button from "@atlaskit/button/new";
 import { DynamicTableStateless } from "@atlaskit/dynamic-table";
 import Heading from "@atlaskit/heading";
 import ChevronDownIcon from "@atlaskit/icon/core/chevron-down";
 import SortAscendingIcon from "@atlaskit/icon/core/sort-ascending";
 import SortDescendingIcon from "@atlaskit/icon/core/sort-descending";
-import Lozenge from "@atlaskit/lozenge";
 import { CheckboxOption } from "@atlaskit/select/checkbox-option";
 import { PopupSelect } from "@atlaskit/select/popup-select";
 import { Inline, Stack } from "@atlaskit/primitives/compiled";
 import { SimpleTag } from "@atlaskit/tag";
+import Toggle from "@atlaskit/toggle";
 import { api, type Grade, type Student } from "../api";
 import { semesterNumber, semesterNumeral } from "../semesters";
 import Sheet from "../components/Sheet";
 import SubjectDescriptionView from "../components/SubjectDescription";
+import {
+  EctsValue,
+  GradeValue,
+  ScaleTable,
+  ScoreBar,
+  gradeKey,
+  gradeMeta,
+  gradeRank,
+} from "../components/GradeParts";
 
 type SortKey = "subject" | "semester" | "value" | "ects";
 type SortOrder = "ASC" | "DESC";
-
-function gradeAppearance(value: string): "success" | "inprogress" | "removed" | "default" {
-  const v = value.trim().toLowerCase();
-  if (["5", "отлично", "зачтено", "a", "b"].includes(v)) return "success";
-  if (["4", "хорошо", "c"].includes(v)) return "inprogress";
-  if (["2", "не зачтено", "незачтено"].includes(v)) return "removed";
-  return "default";
-}
-
-/** Словесная оценка, если она добавляет смысл («Отлично» к «5»). */
-function verbalOf(g: Grade): string {
-  return g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase() ? g.verbal : "";
-}
-
-/** Оценка — главное в строке: крупно и цветом, а не мелким бейджем.
- *  Пустая — оценки ещё нет (не «2»). */
-function GradeValue({ g, withVerbal = false }: { g: Grade; withVerbal?: boolean }) {
-  const value = g.value.trim();
-  if (!value) return <span className="grade-value grade-none">Нет оценки</span>;
-  const numeric = /^\d+([.,]\d+)?$/.test(value);
-  const verbal = withVerbal ? verbalOf(g) : "";
-  return (
-    <span className={`grade-value grade-${gradeAppearance(value)}`}>
-      <span className={numeric ? "grade-number" : "grade-word"}>
-        {/* В ведомости вперемешку «зачтено»/«Зачтено» — выравниваем. */}
-        {numeric ? value : value.charAt(0).toUpperCase() + value.slice(1)}
-      </span>
-      {verbal && <span className="grade-verbal">{verbal}</span>}
-    </span>
-  );
-}
-
-/** Вторая строка карточки: семестр · словесная · ECTS · баллы. */
-function gradeMeta(g: Grade): string {
-  const parts = [`${semesterNumeral(g.semester)} семестр`];
-  const verbal = verbalOf(g);
-  if (verbal && g.value.trim()) parts.push(verbal);
-  if (!isPassFail(g) && g.ects.trim()) parts.push(`ECTS ${g.ects.trim()}`);
-  if (g.score !== null) parts.push(`баллы: ${g.score}`);
-  return parts.join(" · ");
-}
 
 const TITLES: Record<SortKey, string> = {
   subject: "Предмет",
@@ -68,40 +37,6 @@ const TITLES: Record<SortKey, string> = {
   value: "Оценка",
   ects: "ECTS",
 };
-
-const PASS_VALUES = new Set(
-  ["зачет", "зачёт", "зачтено", "не зачтено", "незачтено"].map((s) =>
-    s.toLowerCase()
-  )
-);
-
-/** Зачётный предмет: только шкала баллов, без букв и словесных. */
-function isPassFail(g: Grade): boolean {
-  return (
-    PASS_VALUES.has(g.attestation.trim().toLowerCase()) ||
-    PASS_VALUES.has(g.value.trim().toLowerCase())
-  );
-}
-
-function ectsAppearance(letter: string): "success" | "inprogress" | "removed" | "moved" | "default" {
-  const v = letter.trim().toLowerCase();
-  if (["a", "b", "passed"].includes(v)) return "success";
-  if (["c", "d"].includes(v)) return "inprogress";
-  if (v === "e") return "moved";
-  if (v === "f") return "removed";
-  return "default";
-}
-
-function ectsCell(g: Grade): ReactNode {
-  const score = g.score ?? null;
-  if (isPassFail(g)) {
-    const text = score !== null ? String(score) : "—";
-    return <Lozenge appearance={score !== null ? "success" : "default"}>{text}</Lozenge>;
-  }
-  const letter = g.ects.trim() || "—";
-  const text = score !== null && letter !== "—" ? `${letter} · ${score}` : letter;
-  return <Lozenge appearance={ectsAppearance(letter)}>{text}</Lozenge>;
-}
 
 const CLEAR_ALL = "__clear__";
 
@@ -140,6 +75,10 @@ export default function Grades({ student }: { student: Student }) {
     ects: [],
   });
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [scaleOpen, setScaleOpen] = useState(false);
+  // «Актуальное» — только текущий (последний в ведомости) семестр,
+  // как тумблер «Актуальное / Всё расписание» на вкладке расписания.
+  const [currentOnly, setCurrentOnly] = useState(true);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -160,16 +99,31 @@ export default function Grades({ student }: { student: Student }) {
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sortKey, sortOrder]);
+  }, [filters, sortKey, sortOrder, currentOnly]);
+
+  const currentSemester = useMemo(
+    () => Math.max(0, ...grades.map((g) => semesterNumber(g.semester) ?? 0)),
+    [grades]
+  );
 
   const columns: SortKey[] = ["subject", "semester", "value", "ects"];
 
-  const uniq = (key: SortKey) =>
-    key === "semester"
-      ? [...new Set(grades.map((g) => semesterNumeral(g.semester)))].sort()
-      : [...new Set(grades.map((g) => g[key]).filter(Boolean))].sort((a, b) =>
-          a.localeCompare(b, "ru")
-        );
+  // Значение колонки для фильтра — уже нормализованное по шкале:
+  // «Отлично» и «5» из ведомости — одна опция «5».
+  const cell = (g: Grade, k: SortKey): string =>
+    k === "semester" ? semesterNumeral(g.semester)
+      : k === "value" ? gradeKey(g)
+        : k === "ects" ? g.ects_letter || "—"
+          : g.subject;
+
+  const uniq = (key: SortKey) => {
+    const vals = [...new Set(grades.map((g) => cell(g, key)))];
+    if (key === "value") {
+      const rank = new Map(grades.map((g) => [gradeKey(g), gradeRank(g)]));
+      return vals.sort((a, b) => (rank.get(b) ?? 0) - (rank.get(a) ?? 0));
+    }
+    return vals.sort((a, b) => a.localeCompare(b, "ru"));
+  };
 
   const cycleSort = (key: SortKey) => {
     if (sortKey !== key) {
@@ -181,29 +135,34 @@ export default function Grades({ student }: { student: Student }) {
   };
 
   const visible = useMemo(() => {
-    const match = (g: Grade, k: SortKey) =>
-      k === "semester" ? semesterNumeral(g.semester) : g[k];
     const filtered = grades.filter((g) =>
-      columns.every((k) => filters[k].length === 0 || filters[k].includes(match(g, k)))
+      (!currentOnly || semesterNumber(g.semester) === currentSemester) &&
+      columns.every((k) => filters[k].length === 0 || filters[k].includes(cell(g, k)))
     );
     const dir = sortOrder === "ASC" ? 1 : -1;
     return [...filtered].sort((a, b) => {
       if (sortKey === "semester") {
         return ((semesterNumber(a.semester) ?? 999) - (semesterNumber(b.semester) ?? 999)) * dir;
       }
-      return a[sortKey].localeCompare(b[sortKey], "ru") * dir;
+      if (sortKey === "value") return (gradeRank(b) - gradeRank(a)) * dir;
+      return cell(a, sortKey).localeCompare(cell(b, sortKey), "ru") * dir;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grades, filters, sortKey, sortOrder]);
+  }, [grades, filters, sortKey, sortOrder, currentOnly, currentSemester]);
 
-  const numeric = grades
-    .map((g) => parseFloat(g.value))
-    .filter((n) => !Number.isNaN(n) && n >= 2 && n <= 5);
-  const avg = numeric.length > 0
-    ? (numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2)
+  // Средний балл — по пятибалльным эквивалентам итоговых оценок
+  // (в т.ч. записанных словом: «Отлично» = 5), без предварительных.
+  const final = grades.filter((g) => g.status === "final");
+  const fives = final.map((g) => g.five).filter((f): f is number => f !== null);
+  const avg = fives.length > 0
+    ? (fives.reduce((a, b) => a + b, 0) / fives.length).toFixed(2)
     : "—";
-
-  const pending = grades.filter((g) => !g.value.trim()).length;
+  const scores = final.map((g) => g.score).filter((s): s is number => s !== null);
+  const avg100 = scores.length > 0
+    ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1).replace(".", ",")
+    : "";
+  const inProgress = grades.filter((g) => g.status === "in_progress").length;
+  const mismatches = grades.filter((g) => g.mismatch).length;
   const hasFilter = Object.values(filters).some((v) => v.length > 0);
   const narrow = useNarrow();
   const emptyText = hasFilter ? "Нет оценок по фильтру." : "Оценок пока нет.";
@@ -281,15 +240,37 @@ export default function Grades({ student }: { student: Student }) {
 
   return (
     <div>
+      {/* Тумблер — на том же месте, что и на вкладке «Расписание»:
+          первой строкой под вкладками. */}
+      <div className="schedule-top">
+        <label className="toggle-row">
+          <Toggle
+            label="Актуальное"
+            isChecked={currentOnly}
+            onChange={(e) => setCurrentOnly((e.target as HTMLInputElement).checked)}
+          />
+          <span>{currentOnly ? "Актуальное" : "Все оценки"}</span>
+        </label>
+      </div>
       {/* Имя уже в шапке — здесь только итог. */}
       <div className="summary">
         <div>
           <div className="detail-label">Средний балл</div>
           <div className="summary-value">{avg}</div>
+          <div className="meta">
+            по {fives.length} {plural(fives.length, "оценке", "оценкам", "оценкам")}
+            {avg100 && <> · по 100-балльной: {avg100}</>}
+          </div>
         </div>
-        <div className="meta summary-note">
-          по {numeric.length} {plural(numeric.length, "оценке", "оценкам", "оценкам")} с цифрой
-          {pending > 0 && <> · без оценки: {pending}</>}
+        <div className="summary-side">
+          <Button appearance="subtle" onClick={() => setScaleOpen(true)}>
+            Шкала оценивания
+          </Button>
+          <div className="meta summary-note">
+            {inProgress > 0 && <>идёт: {inProgress}</>}
+            {inProgress > 0 && mismatches > 0 && " · "}
+            {mismatches > 0 && <>⚠ расходится со шкалой: {mismatches}</>}
+          </div>
         </div>
       </div>
       {loadError && <p className="error">{loadError}</p>}
@@ -311,9 +292,11 @@ export default function Grades({ student }: { student: Student }) {
                 <li key={g.id} className="grade-card">
                   <div className="grade-card-main">
                     {subjectLink(g)}
-                    <div className="meta">{gradeMeta(g)}</div>
+                    <div className="meta">{gradeMeta(g, semesterNumeral(g.semester))}</div>
+                    {g.status === "in_progress" && <ScoreBar score={g.score ?? 0} />}
+                    {g.mismatch && <div className="grade-warning">⚠ {g.mismatch}</div>}
                   </div>
-                  <GradeValue g={g} />
+                  <GradeValue g={g} inCard />
                 </li>
               ))}
             </ul>
@@ -327,8 +310,8 @@ export default function Grades({ student }: { student: Student }) {
             cells: [
               { key: g.subject, content: subjectLink(g) },
               { key: g.semester, content: semesterNumeral(g.semester) },
-              { key: `${g.value}|${g.id}`, content: <GradeValue g={g} withVerbal /> },
-              { key: g.ects, content: ectsCell(g) },
+              { key: `${gradeKey(g)}|${g.id}`, content: <GradeValue g={g} withLabel /> },
+              { key: `${g.ects_letter}|${g.id}`, content: <EctsValue g={g} /> },
             ],
           }))}
           rowsPerPage={50}
@@ -351,10 +334,19 @@ export default function Grades({ student }: { student: Student }) {
                 {grades
                   .filter((g) => g.subject === selectedSubject)
                   .map((g) => (
-                    <Inline key={g.id} space="space.100" alignBlock="center">
-                      <SimpleTag text={`${semesterNumeral(g.semester)} семестр`} />
-                      <GradeValue g={g} withVerbal />
-                    </Inline>
+                    <Stack key={g.id} space="space.050">
+                      <Inline space="space.100" alignBlock="center">
+                        <SimpleTag text={`${semesterNumeral(g.semester)} семестр`} />
+                        <GradeValue g={g} withLabel />
+                        <EctsValue g={g} />
+                      </Inline>
+                      {g.status === "provisional" && (
+                        <div className="meta">
+                          Предварительно: в ведомости оценки нет, посчитано по баллам.
+                        </div>
+                      )}
+                      {g.mismatch && <div className="grade-warning">⚠ {g.mismatch}</div>}
+                    </Stack>
                   ))}
               </Stack>
               <SubjectDescriptionView
@@ -363,6 +355,16 @@ export default function Grades({ student }: { student: Student }) {
                 }
               />
             </Stack>
+        </Sheet>
+      )}
+      {scaleOpen && (
+        <Sheet onClose={() => setScaleOpen(false)} label="Шкала оценивания">
+          <Stack space="space.200">
+            <Heading size="medium" as="h2">
+              Шкала оценивания
+            </Heading>
+            <ScaleTable grades={grades} />
+          </Stack>
         </Sheet>
       )}
     </div>

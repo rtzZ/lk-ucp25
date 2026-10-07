@@ -453,6 +453,31 @@ def test_parse_sync_times():
     assert _parse_sync_times("25:00,12:60,abc,,10:00") == [(10, 0)]
     assert _parse_sync_times("") == []
     assert _parse_sync_times("мусор") == []
+    # каждый час
+    assert _parse_sync_times("*:00") == [("*", 0)]
+    assert _parse_sync_times("*:15, 09:30") == [("*", 15), (9, 30)]
+    assert _parse_sync_times("*:60,**:00,*") == []
+
+
+def test_default_sync_is_hourly():
+    """По умолчанию синк каждый час: cron срабатывает в 10:00, 11:00, ..."""
+    import datetime
+    from zoneinfo import ZoneInfo
+
+    from apscheduler.triggers.cron import CronTrigger
+
+    from app.main import DEFAULT_SYNC_TIMES, _parse_sync_times
+
+    [(hh, mm)] = _parse_sync_times(DEFAULT_SYNC_TIMES)
+    tz = ZoneInfo("Europe/Moscow")
+    trig = CronTrigger(hour=hh, minute=mm, timezone=tz)
+    t = datetime.datetime(2026, 10, 7, 9, 5, tzinfo=tz)
+    fires = []
+    for _ in range(3):
+        t = trig.get_next_fire_time(None, t)
+        fires.append(t.strftime("%H:%M"))
+        t += datetime.timedelta(seconds=1)
+    assert fires == ["10:00", "11:00", "12:00"]
 
 
 def test_resolve_tz_fallback(monkeypatch):
@@ -1120,3 +1145,20 @@ def test_password_message_format():
     assert "<code>012345</code>" in text
     assert text.count("\n") >= 3 and "1 минуту" in text
     assert "скопировать" not in text
+
+
+
+def test_grades_interpreted_by_official_scale(client):
+    """API отдаёт разбор по шкале; противоречие ведомости помечено, не исправлено."""
+    g = client.get("/grades").json()[0]  # Математика: 5 / ECTS A / 92 балла
+    assert (g["value"], g["five"], g["label"], g["status"]) == ("5", 5, "Отлично", "final")
+    assert g["ects_letter"] == "A" and g["ects_source"] == "sheet"  # как в ведомости
+    assert "92 баллов по шкале — B" in g["mismatch"]
+
+
+def test_grading_scale_endpoint(client):
+    rows = client.get("/grades/scale").json()
+    assert [r["ects"] for r in rows] == ["A", "B", "C", "D", "E", "F"]
+    assert rows[-1] == {"lo": 0, "hi": 54, "traditional": "Неудовлетворительно",
+                        "five": 2, "passed": False, "ects": "F"}
+    assert client.get("/grades/scale", headers=NO_AUTH).status_code == 401

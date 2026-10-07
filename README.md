@@ -74,7 +74,7 @@ npm.cmd run test:e2e   # E2E (нужны запущенные backend SEED_DEMO=
 | `DATABASE_URL` | `postgresql+asyncpg://lk:lk@localhost:5432/lk` | Строка подключения (sqlite для разработки) |
 | `YANDEX_SCHEDULE_URL` | — | Edit-ссылка таблицы расписания |
 | `YANDEX_GRADES_URL` | — | Edit-ссылка таблицы успеваемости |
-| `SYNC_TIMES` | `09:30,11:00` | Время синхронизации (`HH:MM,HH:MM`) |
+| `SYNC_TIMES` | `*:00` | Когда синхронизировать: `*:MM` — каждый час, `HH:MM,HH:MM` — в заданные часы |
 | `SYNC_TIMEZONE` | `Europe/Moscow` | Пояс синхронизации и расписания |
 | `SYNC_MIN_RATIO` | `0.5` | Не применять синк, если записей стало меньше этой доли (`0` — выкл.) |
 | `LK_GROUP` | `УЦП-25` | Группа кабинета (ведомость её не называет) |

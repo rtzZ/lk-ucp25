@@ -83,6 +83,25 @@ class GradeOut(BaseModel):
     ects: str
     score: float | None
     description: SubjectDescription = SubjectDescription()
+    # Разбор по официальной шкале (app/grading.py):
+    five: int | None = None  # пятибалльный эквивалент — для среднего балла
+    passed: bool | None = None  # бинарная система
+    label: str = ""  # «Отлично» / «Зачтено» / ...
+    ects_letter: str = ""  # из ведомости или по баллам
+    ects_source: str = ""  # sheet | score
+    status: str = "none"  # final | provisional | in_progress | none
+    mismatch: str = ""  # противоречие ведомости и шкалы, "" — нет
+
+
+class ScaleBandOut(BaseModel):
+    """Строка официальной шкалы оценивания."""
+
+    lo: int
+    hi: int
+    traditional: str
+    five: int
+    passed: bool
+    ects: str
 
 
 class ScheduleItemOut(BaseModel):
