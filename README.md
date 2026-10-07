@@ -75,7 +75,9 @@ npm.cmd run test:e2e   # E2E (нужны запущенные backend SEED_DEMO=
 | `YANDEX_SCHEDULE_URL` | — | Edit-ссылка таблицы расписания |
 | `YANDEX_GRADES_URL` | — | Edit-ссылка таблицы успеваемости |
 | `SYNC_TIMES` | `09:30,11:00` | Время синхронизации (`HH:MM,HH:MM`) |
-| `SYNC_TIMEZONE` | `Europe/Moscow` | Пояс времени синхронизации |
+| `SYNC_TIMEZONE` | `Europe/Moscow` | Пояс синхронизации и расписания |
+| `SYNC_MIN_RATIO` | `0.5` | Не применять синк, если записей стало меньше этой доли (`0` — выкл.) |
+| `LK_GROUP` | `УЦП-25` | Группа кабинета (ведомость её не называет) |
 | `SKIP_SCHEDULER` | — | `1` — не запускать планировщик (тесты/E2E) |
 | `EXPIRE_INTERVAL_HOURS` | `1` | Период фонового перевода прошедших пар в completed |
 | `SEED_DEMO` | — | `1` — загрузить демо-данные при старте |

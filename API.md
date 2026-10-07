@@ -75,7 +75,8 @@ note, link (только http(s), "" если нет)`.
 листа, например `1 семестр 25-26`). Сортировка: семестр, предмет.
 
 Оценка: `id, subject, semester, attestation (экзамен|зачет|зачет с оценкой|""),
-value (как в ведомости: "5", "зачтено", баллы), verbal, ects, score (nullable),
+value (как в ведомости: "5", "зачтено", баллы; "" — оценки ещё нет),
+verbal, ects, score (nullable),
 description` (см. `GET /subjects`).
 
 ## `GET /subjects` — описание предмета

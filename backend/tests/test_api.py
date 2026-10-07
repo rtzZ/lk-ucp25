@@ -963,3 +963,124 @@ def test_is_group_member_errors(monkeypatch):
     assert asyncio.run(telegram.is_group_member(1)) is False
     monkeypatch.setattr(telegram, "call", restricted)
     assert asyncio.run(telegram.is_group_member(1)) is True
+
+
+# --- Синхронизация: защита от частичного парса, предметы ---
+
+def _grade_rows(n_students: int, subjects: list[str]):
+    students = [{"group": "УЦП-25", "code": f"ст{i} имя", "last_name": f"Ст{i}",
+                 "first_name": "Имя", "full_name": f"Ст{i} Имя"}
+                for i in range(n_students)]
+    grades = [{"student_code": st["code"], "subject": subj,
+               "semester": "1 семестр 25-26", "attestation": "экзамен",
+               "value": "5", "verbal": "Отлично", "ects": "A", "score": 90.0}
+              for st in students for subj in subjects]
+    return students, grades
+
+
+def _sched_rows(n: int):
+    return [{"group": "УЦП-25", "date": f"2026-03-{1 + i % 28:02d}",
+             "time_start": "19:00", "time_end": "20:20", "subject_text": f"П{i}",
+             "teacher": "", "org": "", "lesson_no": None, "kind": "lesson",
+             "status": "active", "note": "", "link": ""} for i in range(n)]
+
+
+def test_sync_shrink_guard(monkeypatch):
+    """Резкое сокращение (сломался лист) не применяется; force — применяется."""
+    import asyncio
+    from sqlalchemy import func
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.sync import upsert_grades, upsert_schedule
+
+    monkeypatch.delenv("SYNC_MIN_RATIO", raising=False)
+    eng = create_async_engine("sqlite+aiosqlite://")
+    S = async_sessionmaker(eng, expire_on_commit=False)
+
+    async def count(s, model):
+        return (await s.execute(select(func.count()).select_from(model))).scalar_one()
+
+    async def run():
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with S() as s:
+            assert await upsert_schedule(_sched_rows(40), s) == 40
+            assert await upsert_grades(*_grade_rows(30, ["А", "Б"]), s) == 60
+            # половина листов пропала -> не применяем
+            assert await upsert_schedule(_sched_rows(10), s) == 0
+            assert await count(s, ScheduleItem) == 40
+            assert await upsert_grades(*_grade_rows(30, ["А"])[:1], [], s) == 0
+            assert await upsert_grades(*_grade_rows(10, ["А", "Б"]), s) == 0
+            assert await count(s, Student) == 30 and await count(s, Grade) == 60
+            # умеренное сокращение — нормально
+            assert await upsert_schedule(_sched_rows(30), s) == 30
+            # force (admin sync --force) — применяется
+            assert await upsert_schedule(_sched_rows(5), s, force=True) == 5
+            assert await upsert_grades(*_grade_rows(10, ["А"]), s, force=True) == 10
+            assert await count(s, Student) == 10
+        monkeypatch.setenv("SYNC_MIN_RATIO", "0")
+        async with S() as s:
+            assert await upsert_grades(*_grade_rows(25, ["А"]), s) == 25
+            assert await upsert_grades(*_grade_rows(2, ["А"]), s) == 2
+        await eng.dispose()
+
+    asyncio.run(run())
+
+
+def test_sync_subjects_orphans_and_descriptions():
+    """Предметы без оценок удаляются; новым проставляется описание из макета."""
+    import asyncio
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.sync import upsert_grades
+
+    eng = create_async_engine("sqlite+aiosqlite://")
+    S = async_sessionmaker(eng, expire_on_commit=False)
+
+    async def names(s):
+        return {x.name: x.description for x in
+                (await s.execute(select(Subject))).scalars()}
+
+    async def run():
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with S() as s:
+            await upsert_grades(*_grade_rows(3, ["Старый", "Маркетинг"]), s)
+            got = await names(s)
+            assert set(got) == {"Старый", "Маркетинг"}
+            assert got["Маркетинг"].startswith("{")  # описание из макета
+            assert got["Старый"] == ""
+            await upsert_grades(*_grade_rows(3, ["Маркетинг"]), s)
+            assert set(await names(s)) == {"Маркетинг"}
+        await eng.dispose()
+
+    asyncio.run(run())
+
+
+def test_empty_grade_in_api(client):
+    """Оценка без значения отдаётся пустой — фронт покажет «нет оценки»."""
+    import asyncio
+
+    async def run(add: bool):
+        async with TestSession() as s:
+            if add:
+                subj = Subject(name="Будущий предмет")
+                s.add(subj)
+                await s.flush()
+                s.add(Grade(student_id=client.ids[0], subject_id=subj.id,
+                            semester="2 семестр 25-26", attestation="экзамен",
+                            value="", verbal="", ects="", score=None))
+            else:
+                sid = (await s.execute(select(Subject.id).where(
+                    Subject.name == "Будущий предмет"))).scalar_one()
+                await s.execute(Grade.__table__.delete().where(Grade.subject_id == sid))
+                await s.execute(Subject.__table__.delete().where(Subject.id == sid))
+            await s.commit()
+
+    asyncio.run(run(True))
+    try:
+        g = next(x for x in client.get("/grades").json()
+                 if x["subject"] == "Будущий предмет")
+        assert (g["value"], g["ects"], g["score"]) == ("", "", None)
+    finally:
+        asyncio.run(run(False))

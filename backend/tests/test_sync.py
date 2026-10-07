@@ -221,7 +221,7 @@ def test_parse_grades_minisheet():
         norm_name("Белкин Григорий")}
     by_code = {g["student_code"]: g for g in grades
                  if g["subject"] == "Управление проектами"}
-    assert len(grades) == 6  # +1 минимальная за пустую ячейку (Белкин/Маркетинг)
+    assert len(grades) == 6  # в т.ч. пустая ячейка (Белкин/Маркетинг) — без оценки
     g = by_code[norm_name("Азимов Мурад")]
     assert g["subject"] == "Управление проектами"
     assert g["attestation"] == "зачет с оценкой"
@@ -234,12 +234,25 @@ def test_parse_grades_minisheet():
     assert (az["value"], az["verbal"], az["ects"], az["score"]) == (
         "5", "Отлично", "B", 88.0)
     assert az["attestation"] == "зачет с оценкой"
-    belkin_min = next(g for g in grades
-                      if g["subject"] == "Маркетинг"
-                      and g["student_code"] == norm_name("Белкин Григорий"))
-    assert (belkin_min["value"], belkin_min["verbal"],
-            belkin_min["ects"], belkin_min["score"]) == (
-        "2", "Неудовлетворительно", "F", 0.0)
+    # Пустая итоговая — «оценки ещё нет», а не «2»/F.
+    belkin = next(g for g in grades
+                  if g["subject"] == "Маркетинг"
+                  and g["student_code"] == norm_name("Белкин Григорий"))
+    assert (belkin["value"], belkin["verbal"],
+            belkin["ects"], belkin["score"]) == ("", "", "", None)
+
+
+def test_find_downloader_url():
+    """Ссылка на XLSX: боевой хост и локальный прокси -> всегда боевой."""
+    from app.sync import find_downloader_url
+
+    q = "?uid=1&filename=a.xlsx&media_type=spreadsheet&content_type=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet&sign=x"
+    real = f'<a href="https://downloader.disk.yandex.ru/disk/abc{q.replace("&", "&amp;")}">'
+    assert find_downloader_url(real) == f"https://downloader.disk.yandex.ru/disk/abc{q}"
+    proxied = f"src='http://localhost:12701/disk/def{q}'"
+    assert find_downloader_url(proxied) == f"https://downloader.disk.yandex.ru/disk/def{q}"
+    with pytest.raises(RuntimeError):
+        find_downloader_url('<a href="https://downloader.disk.yandex.ru/disk/x?type=pdf">')
 
 
 def test_match_student_swapped_and_fuzzy():

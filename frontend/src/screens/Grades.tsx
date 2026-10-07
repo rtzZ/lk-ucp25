@@ -27,6 +27,14 @@ function gradeAppearance(value: string): "success" | "inprogress" | "removed" | 
   return "default";
 }
 
+/** Подпись оценки: «5 · Отлично»; пустая — оценки ещё нет (не «2»). */
+function gradeLabel(g: Grade): string {
+  if (!g.value.trim()) return "Нет оценки";
+  return g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase()
+    ? `${g.value} · ${g.verbal}`
+    : g.value;
+}
+
 const TITLES: Record<SortKey, string> = {
   subject: "Предмет",
   semester: "Семестр",
@@ -223,9 +231,7 @@ export default function Grades({ student }: { student: Student }) {
             { key: g.semester, content: semesterNumeral(g.semester) },
             { key: `${g.value}|${g.id}`, content: (
               <Lozenge appearance={gradeAppearance(g.value)}>
-                {g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase()
-                  ? `${g.value} · ${g.verbal}`
-                  : g.value}
+                {gradeLabel(g)}
               </Lozenge>
             )},
             { key: g.ects, content: ectsCell(g) },
@@ -257,9 +263,7 @@ export default function Grades({ student }: { student: Student }) {
                     <Inline key={g.id} space="space.100" alignBlock="center">
                       <SimpleTag text={semesterNumeral(g.semester)} />
                       <Lozenge appearance={gradeAppearance(g.value)}>
-                        {g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase()
-                          ? `${g.value} · ${g.verbal}`
-                          : g.value}
+                        {gradeLabel(g)}
                       </Lozenge>
                     </Inline>
                   ))}

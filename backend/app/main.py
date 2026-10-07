@@ -20,8 +20,8 @@ async def _sync_job() -> None:
     from .sync import sync_all
     try:
         await sync_all()
-    except Exception as e:  # noqa: BLE001 — планировщик обязан пережить всё
-        logger.error(f"Фоновая синхронизация упала: {e}")
+    except Exception:  # noqa: BLE001 — планировщик обязан пережить всё
+        logger.exception("Фоновая синхронизация упала")
 
 
 async def _expire_job() -> None:
@@ -42,8 +42,8 @@ async def _expire_job() -> None:
             logger.info(f"Переведено пар в completed: {n}")
         if expired:
             logger.info(f"Удалено истёкших сессий: {expired}")
-    except Exception as e:  # noqa: BLE001 — планировщик обязан пережить всё
-        logger.error(f"Фоновое завершение пар упало: {e}")
+    except Exception:  # noqa: BLE001 — планировщик обязан пережить всё
+        logger.exception("Фоновое завершение пар упало")
 
 
 def _int_env(name: str, default: int) -> int:

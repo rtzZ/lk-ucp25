@@ -68,6 +68,14 @@ docker compose exec app python -m app.admin bindings           # список
 docker compose exec app python -m app.admin unbind "Иванов Иван"
 ```
 
+**Синхронизация вручную.** Если в логе «после парсинга N (меньше 50%) —
+БД не тронута», проверьте таблицу: обычно сломан лист или шапка. Если
+сокращение ожидаемо (новый учебный год), примените его:
+
+```bash
+docker compose exec app python -m app.admin sync --force
+```
+
 ---
 
 ## 3. Запуск backend + PostgreSQL

@@ -1,7 +1,10 @@
-"""CLI администратора: привязки Telegram.
+"""CLI администратора: привязки Telegram и ручная синхронизация.
 
   python -m app.admin bindings                  — список привязок
   python -m app.admin unbind "Фамилия Имя"      — снять привязку и сессии
+  python -m app.admin sync [--force]            — синхронизация сейчас
+                                                  (--force: принять резкое
+                                                  сокращение данных)
 
 Снятие нужно, если ФИО занял чужой аккаунт или студент сменил Telegram:
 после него студент заново пишет боту /start.
@@ -50,6 +53,12 @@ async def unbind(name: str) -> int:
 def main(argv: list[str]) -> int:
     if len(argv) == 1 and argv[0] == "bindings":
         asyncio.run(bindings())
+        return 0
+    if argv and argv[0] == "sync" and argv[1:] in ([], ["--force"]):
+        from .logging import setup_logging
+        from .sync import sync_all
+        setup_logging()
+        asyncio.run(sync_all(force=argv[1:] == ["--force"]))
         return 0
     if len(argv) == 2 and argv[0] == "unbind":
         return asyncio.run(unbind(argv[1]))

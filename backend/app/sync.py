@@ -20,6 +20,7 @@
 При недоступности ссылок ошибка логируется, БД хранит последние данные.
 """
 
+import asyncio
 import datetime
 import io
 import os
@@ -35,8 +36,16 @@ from .models import AuthSession, Grade, Group, ScheduleItem, Student, Subject
 
 SCHEDULE_EDIT_URL = os.getenv("YANDEX_SCHEDULE_URL", "")
 GRADES_EDIT_URL = os.getenv("YANDEX_GRADES_URL", "")
+# Группа кабинета: ведомость её не называет, расписание — в имени файла.
+DEFAULT_GROUP = os.getenv("LK_GROUP", "УЦП-25")
 
-DOWNLOADER_RE = re.compile(r"http://localhost:12701/disk/[^\"'\\\s<>]+")
+DOWNLOADER_HOST = "https://downloader.disk.yandex.ru"
+# Прямая ссылка в HTML edit-страницы: обычно downloader.disk.yandex.ru,
+# в некоторых окружениях — через локальный прокси (localhost:12701).
+# Принимаем оба варианта и приводим к боевому хосту.
+DOWNLOADER_RE = re.compile(
+    r"(?:https?://downloader\.disk\.yandex\.ru|http://localhost:12701)"
+    r"(/disk/[^\"'\\\s<>]+)")
 TIME_RE = re.compile(r"(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})")
 PERSON_RE = re.compile(
     r"^[А-ЯЁA-Z][а-яёa-z]+\s+[А-ЯЁA-Z][а-яёa-z.\-]+"
@@ -263,15 +272,19 @@ def extract_downloader_url(edit_url: str) -> str:
             page = browser.new_page()
             page.goto(edit_url, wait_until="domcontentloaded", timeout=90000)
             page.wait_for_timeout(12000)
-            html = page.content().replace("&amp;", "&")
+            html = page.content()
         finally:
             browser.close()
-    urls = DOWNLOADER_RE.findall(html)
-    xlsx = [u for u in urls if "spreadsheetml" in u]
+    return find_downloader_url(html)
+
+
+def find_downloader_url(html: str) -> str:
+    """Подписанная ссылка на XLSX из HTML edit-страницы (хост — боевой)."""
+    paths = DOWNLOADER_RE.findall(html.replace("&amp;", "&"))
+    xlsx = [p for p in paths if "spreadsheetml" in p]
     if not xlsx:
         raise RuntimeError("Прямая ссылка на файл не найдена в HTML страницы")
-    return xlsx[0].replace("http://localhost:12701",
-                           "https://downloader.disk.yandex.ru")
+    return DOWNLOADER_HOST + xlsx[0]
 
 
 async def download_xlsx(url: str) -> tuple[bytes, str]:
@@ -311,7 +324,7 @@ def _file_group(filename: str, prefix: str) -> str:
     """'Расписание УЦП-25 1 сем...' -> 'УЦП-25'."""
     m = re.search(re.escape(prefix) + r"\s+(.+?)(?:\s+\d|\.|$)", filename,
                   re.IGNORECASE)
-    return m.group(1).strip() if m else "УЦП-25"
+    return m.group(1).strip() if m else DEFAULT_GROUP
 
 
 def parse_schedule_xlsx(payload: bytes, filename: str) -> list[dict]:
@@ -391,7 +404,7 @@ def parse_grades_xlsx(payload: bytes) -> tuple[list[dict], list[dict]]:
     wb = load_workbook(io.BytesIO(payload), data_only=True)
     students: dict[str, dict] = {}
     grades: list[dict] = []
-    group = "УЦП-25"  # группа из имени файла «Успеваемость сводная УЦП-25»
+    group = DEFAULT_GROUP  # ведомость группу не называет (LK_GROUP)
 
     for sheet in wb.worksheets:
         if "семестр" not in sheet.title.lower():
@@ -520,22 +533,16 @@ def parse_grades_xlsx(payload: bytes) -> tuple[list[dict], list[dict]]:
                     code = roster_by_row.get(r)
                     if code is None:
                         continue
-                raw_value = val(r, value_c)
-                if raw_value in (None, ""):
-                    # Пустая ячейка = минимальная оценка. Свои списки
-                    # (факультатив) затрагивают только своих участников.
-                    minimal = _minimal_grade(attest)
-                    value = minimal["value"]
-                    verbal = minimal["verbal"]
-                    ects = minimal["ects"]
-                    score = minimal["score"]
-                else:
-                    value = _s(raw_value)
-                    verbal = _s(val(r, verbal_c)) if verbal_c else ""
-                    ects = _s(val(r, ects_c)) if ects_c else ""
-                    raw_score = val(r, score_c) if score_c else None
-                    score = (float(raw_score)
-                             if isinstance(raw_score, (int, float)) else None)
+                # Пустая итоговая = оценки ещё нет (текущий семестр,
+                # не сдано): value "" — не «2», иначе у всей группы
+                # двойки до конца сессии. Набранные баллы сохраняются.
+                value = _s(val(r, value_c))
+                verbal = _s(val(r, verbal_c)) if verbal_c and value else ""
+                ects = _s(val(r, ects_c)) if ects_c and value else ""
+                raw_score = val(r, score_c) if score_c else None
+                score = (float(raw_score)
+                         if isinstance(raw_score, (int, float))
+                         and not isinstance(raw_score, bool) else None)
                 grades.append({
                     "student_code": code,
                     "subject": subject,
@@ -555,16 +562,6 @@ def _s(value) -> str:
         return ""
     text = str(value).strip()
     return "" if text.lower() in {"none", "null", "nan", "-", "—"} else text
-
-
-def _minimal_grade(attest: str) -> dict:
-    """Минимальная оценка за пустую ячейку: 5-балльная -> '2',
-    зачётная -> 'не зачтено'."""
-    if attest in ("зачет", "зачёт"):
-        return {"value": "не зачтено", "verbal": "", "ects": "F",
-                "score": 0.0}
-    return {"value": "2", "verbal": "Неудовлетворительно", "ects": "F",
-            "score": 0.0}
 
 
 def _col_values(val, max_row, first_row, c) -> list[str]:
@@ -675,15 +672,54 @@ async def _get_or_create(session, model, **kwargs):
     return obj
 
 
-async def upsert_schedule(items: list[dict], session) -> int:
+# Защита от частичного парса: если записей стало меньше этой доли от
+# прежнего, синк не применяется (сломался лист/шапка — иначе потеряли бы
+# данные молча). SYNC_MIN_RATIO=0 — выключить; разовый обход — --force.
+DEFAULT_MIN_RATIO = 0.5
+SHRINK_MIN_BASE = 20  # на маленьких объёмах (демо, начало года) не проверяем
+
+
+def _min_ratio() -> float:
+    try:
+        return float(os.getenv("SYNC_MIN_RATIO", str(DEFAULT_MIN_RATIO)))
+    except ValueError:
+        logger.warning(f"SYNC_MIN_RATIO не число, использую {DEFAULT_MIN_RATIO}")
+        return DEFAULT_MIN_RATIO
+
+
+async def _shrunk(session, model, new_count: int, what: str) -> bool:
+    """Новых записей подозрительно меньше, чем в БД — не применять синк."""
+    ratio = _min_ratio()
+    if ratio <= 0:
+        return False
+    old = (await session.execute(select(func.count()).select_from(model))
+           ).scalar_one()
+    if old >= SHRINK_MIN_BASE and new_count < old * ratio:
+        logger.error(
+            f"{what}: в БД {old}, после парсинга {new_count} (меньше "
+            f"{ratio:.0%}) — БД не тронута. Похоже на смену формата таблицы; "
+            "если сокращение ожидаемо: python -m app.admin sync --force")
+        return True
+    return False
+
+
+async def upsert_schedule(items: list[dict], session, *,
+                          force: bool = False) -> int:
     """Полная замена расписания. Возвращает число записей.
 
     Пустой результат парсинга — повод НЕ трогать БД (смена формата таблицы
     иначе обнулит расписание): возвращается 0, старые данные остаются.
+    То же при резком сокращении (`_shrunk`), если не force.
     """
     if not items:
         logger.error("Пустой результат парсинга расписания — БД не тронута")
         return 0
+    if not force and await _shrunk(session, ScheduleItem, len(items),
+                                   "Расписание"):
+        return 0
+    if DEFAULT_GROUP not in {it["group"] for it in items}:
+        logger.warning(f"В расписании нет группы {DEFAULT_GROUP!r} (LK_GROUP): "
+                       "студенты увидят пустое расписание")
     await session.execute(delete(ScheduleItem))
     groups: dict[str, Group] = {}
     for it in items:
@@ -711,7 +747,8 @@ async def _delete_orphan_groups(session) -> None:
     await session.execute(delete(Group).where(Group.id.in_(orphan_ids)))
 
 
-async def upsert_grades(students: list[dict], grades: list[dict], session) -> int:
+async def upsert_grades(students: list[dict], grades: list[dict], session, *,
+                        force: bool = False) -> int:
     """Замена оценок и upsert студентов по code. Возвращает число оценок.
 
     Пустой результат парсинга — БД не трогается (защита от смены формата).
@@ -719,9 +756,14 @@ async def upsert_grades(students: list[dict], grades: list[dict], session) -> in
     на клиенте (localStorage), и после wipe+insert старый id указывал бы
     на другого студента. Telegram-привязки и сессии при этом сохраняются.
     Студенты, пропавшие из ведомости, удаляются вместе с сессиями.
+    Предметы без оценок удаляются, новым проставляются описания из макета.
     """
     if not students and not grades:
         logger.error("Пустой результат парсинга успеваемости — БД не тронута")
+        return 0
+    if not force and (
+            await _shrunk(session, Student, len(students), "Студенты")
+            or await _shrunk(session, Grade, len(grades), "Оценки")):
         return 0
     await session.execute(delete(Grade))
     existing = {st.code: st for st in
@@ -733,10 +775,10 @@ async def upsert_grades(students: list[dict], grades: list[dict], session) -> in
         await session.execute(
             delete(AuthSession).where(AuthSession.student_id.in_(gone_ids)))
         await session.execute(delete(Student).where(Student.id.in_(gone_ids)))
-    group = await _get_or_create(session, Group, name="УЦП-25")
+    group = await _get_or_create(session, Group, name=DEFAULT_GROUP)
     by_code: dict[str, Student] = {}
     for s in students:
-        g = group if s["group"] == "УЦП-25" else await _get_or_create(
+        g = group if s["group"] == DEFAULT_GROUP else await _get_or_create(
             session, Group, name=s["group"])
         st = existing.get(s["code"])
         if st is None:
@@ -769,32 +811,48 @@ async def upsert_grades(students: list[dict], grades: list[dict], session) -> in
                           value=gr["value"], verbal=gr["verbal"],
                           ects=gr["ects"], score=gr["score"]))
         inserted += 1
+    await session.flush()
+    await session.execute(delete(Subject).where(
+        ~select(Grade.id).where(Grade.subject_id == Subject.id).exists()))
     await session.commit()
+    # Описания — только после commit: fill коммитит сам.
+    from .subject_descriptions import fill_subject_descriptions
+    await fill_subject_descriptions(session)
     return inserted
 
 
-async def sync_source(name: str, edit_url: str, kind: str) -> None:
-    """Синхронизация одного источника. Ошибки логируются, БД не трогается."""
+async def sync_source(name: str, edit_url: str, kind: str, *,
+                      force: bool = False) -> None:
+    """Синхронизация одного источника. Ошибки логируются, БД не трогается.
+
+    Chromium и openpyxl — синхронные и тяжёлые (секунды), поэтому в потоке:
+    иначе на время синка встаёт весь API.
+    """
     if not edit_url:
         logger.warning(f"[{name}] ссылка не задана, пропуск")
         return
     try:
-        import asyncio
         direct = await asyncio.to_thread(extract_downloader_url, edit_url)
         payload, filename = await download_xlsx(direct)
         async with SessionLocal() as session:
             if kind == "schedule":
-                items = parse_schedule_xlsx(payload, filename)
-                count = await upsert_schedule(items, session)
+                items = await asyncio.to_thread(
+                    parse_schedule_xlsx, payload, filename)
+                count = await upsert_schedule(items, session, force=force)
             else:
-                students, grades = parse_grades_xlsx(payload)
-                count = await upsert_grades(students, grades, session)
+                students, grades = await asyncio.to_thread(
+                    parse_grades_xlsx, payload)
+                count = await upsert_grades(students, grades, session,
+                                            force=force)
         logger.info(f"[{name}] синхронизировано записей: {count}")
-    except Exception as e:
-        logger.error(f"[{name}] ошибка синхронизации: {e}")
+    except Exception:  # noqa: BLE001 — один источник не роняет другой
+        logger.exception(f"[{name}] ошибка синхронизации")
 
 
-async def sync_all() -> None:
-    """Точка входа планировщика: расписание + успеваемость (время — SYNC_TIMES)."""
-    await sync_source("расписание", SCHEDULE_EDIT_URL, "schedule")
-    await sync_source("успеваемость", GRADES_EDIT_URL, "grades")
+async def sync_all(*, force: bool = False) -> None:
+    """Точка входа планировщика: расписание + успеваемость (время — SYNC_TIMES).
+
+    force — применить даже при резком сокращении данных (admin sync --force).
+    """
+    await sync_source("расписание", SCHEDULE_EDIT_URL, "schedule", force=force)
+    await sync_source("успеваемость", GRADES_EDIT_URL, "grades", force=force)
