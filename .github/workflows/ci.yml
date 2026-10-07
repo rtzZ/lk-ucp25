@@ -75,5 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # compose читает env_file: .env, а он в .gitignore — берём пример.
+      - run: cp .env.example .env
       - run: docker compose config
       - run: docker build ./backend
