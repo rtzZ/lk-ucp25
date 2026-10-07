@@ -1,76 +1,86 @@
-/** Экран входа: группа + фамилия/имя. */
+/** Экран входа: ФИО -> временный пароль от Telegram-бота -> вход. */
 
 import { useEffect, useState } from "react";
 import Button from "@atlaskit/button/new";
-import Select from "@atlaskit/select";
 import Textfield from "@atlaskit/textfield";
-import { api, type Student } from "../api";
+import { api, type AuthConfig, type Student } from "../api";
 
 interface Props {
-  onLogin: (s: Student, group: string) => void;
+  onLogin: (s: Student) => void;
 }
 
+const NO_CONNECTION = "Нет связи с сервером. Проверьте соединение.";
+
 export default function Login({ onLogin }: Props) {
-  const [groups, setGroups] = useState<string[]>(["УЦП-25"]);
-  const [group, setGroup] = useState("УЦП-25");
+  const [config, setConfig] = useState<AuthConfig | null>(null);
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [password, setPassword] = useState("");
+  const [step, setStep] = useState<"name" | "password">("name");
+  const [devPassword, setDevPassword] = useState("");
   const [error, setError] = useState("");
-  const [suggestions, setSuggestions] = useState<Student[]>([]);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.groups().then((g) => {
-      if (g.length > 0) {
-        setGroups(g);
-        setGroup(g[0]);
-      }
-    }).catch(() => {});
+    api.authConfig().then(setConfig).catch(() => {});
   }, []);
 
-  const submit = async () => {
+  const botLink = config?.bot_username
+    ? `https://t.me/${config.bot_username}`
+    : "";
+  const botName = config?.bot_username ? `@${config.bot_username}` : "бота кабинета";
+
+  const message = (e: unknown) =>
+    e instanceof TypeError || (e instanceof Error && e.message.startsWith("timeout"))
+      ? NO_CONNECTION
+      : (e as Error).message;
+
+  const requestPassword = async () => {
     setError("");
-    setSuggestions([]);
+    setBusy(true);
     try {
-      const student = await api.login(lastName.trim(), firstName.trim());
-      onLogin(student, group);
+      const r = await api.requestPassword(lastName.trim(), firstName.trim());
+      setDevPassword(r.dev_password ?? "");
+      setPassword("");
+      setStep("password");
     } catch (e) {
-      const err = e as Error & { suggestions?: Student[] };
-      if (err.message !== "login failed") {
-        // Сеть/таймаут, а не «не найден»: не врём про фамилию.
-        setSuggestions([]);
-        setError("Нет связи с сервером. Проверьте соединение.");
-        return;
-      }
-      const sug = err.suggestions ?? [];
-      setSuggestions(sug);
-      setError(
-        sug.length > 0 ? "Уточните имя:" : "Студент не найден. Проверьте фамилию."
-      );
+      setError(message(e));
+    } finally {
+      setBusy(false);
     }
   };
+
+  const login = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      onLogin(await api.login(lastName.trim(), firstName.trim(), password.trim()));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const nameFilled = lastName.trim() !== "" && firstName.trim() !== "";
 
   return (
     <form
       className="card"
       onSubmit={(e) => {
         e.preventDefault();
-        void submit();
+        if (busy) return;
+        void (step === "name" ? requestPassword() : login());
       }}
     >
       <div className="login-top">
         <h1>Кабинет студента</h1>
       </div>
-      <label>Группа</label>
-      <Select
-        inputId="group-select"
-        options={groups.map((g) => ({ label: g, value: g }))}
-        value={{ label: group, value: group }}
-        onChange={(o) => o && setGroup(o.value)}
-      />
       <label htmlFor="last-name">Фамилия</label>
       <Textfield
         id="last-name"
         value={lastName}
+        isDisabled={step === "password"}
         onChange={(e) => setLastName((e.target as HTMLInputElement).value)}
         placeholder="Иванов"
       />
@@ -78,22 +88,60 @@ export default function Login({ onLogin }: Props) {
       <Textfield
         id="first-name"
         value={firstName}
+        isDisabled={step === "password"}
         onChange={(e) => setFirstName((e.target as HTMLInputElement).value)}
         placeholder="Иван"
       />
-      <div className="actions">
-        <Button appearance="primary" type="submit" isDisabled={!lastName.trim()}>
-          Войти
-        </Button>
-      </div>
+
+      {step === "name" ? (
+        <>
+          <div className="actions">
+            <Button appearance="primary" type="submit" isDisabled={!nameFilled || busy}>
+              Получить пароль
+            </Button>
+          </div>
+          <p className="meta">
+            Пароль придёт от {botLink ? <a href={botLink} target="_blank" rel="noreferrer">{botName}</a> : botName} в
+            Telegram. Первый раз? Напишите боту /start и укажите фамилию и имя.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="meta">
+            Если ваш Telegram привязан, пароль уже отправлен от{" "}
+            {botLink ? <a href={botLink} target="_blank" rel="noreferrer">{botName}</a> : botName}.
+            Не пришёл — напишите боту /start.
+          </p>
+          {devPassword && (
+            <p className="meta">Режим разработки: пароль {devPassword}</p>
+          )}
+          <label htmlFor="password">Пароль из Telegram</label>
+          <Textfield
+            id="password"
+            value={password}
+            autoFocus
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            onChange={(e) => setPassword((e.target as HTMLInputElement).value)}
+            placeholder="123456"
+          />
+          <div className="actions login-buttons">
+            <Button appearance="primary" type="submit" isDisabled={!password.trim() || busy}>
+              Войти
+            </Button>
+            <Button
+              appearance="subtle"
+              onClick={() => {
+                setStep("name");
+                setError("");
+              }}
+            >
+              Изменить ФИО
+            </Button>
+          </div>
+        </>
+      )}
       {error && <p className="error">{error}</p>}
-      {suggestions.map((s) => (
-        <div key={s.id} className="actions">
-          <Button appearance="subtle" onClick={() => onLogin(s, s.group)}>
-            {s.full_name || `${s.last_name} ${s.first_name}`}
-          </Button>
-        </div>
-      ))}
     </form>
   );
 }

@@ -31,7 +31,7 @@ from openpyxl import load_workbook
 from sqlalchemy import delete, func, select
 
 from .db import SessionLocal
-from .models import Grade, Group, ScheduleItem, Student, Subject
+from .models import AuthSession, Grade, Group, ScheduleItem, Student, Subject
 
 SCHEDULE_EDIT_URL = os.getenv("YANDEX_SCHEDULE_URL", "")
 GRADES_EDIT_URL = os.getenv("YANDEX_GRADES_URL", "")
@@ -717,8 +717,8 @@ async def upsert_grades(students: list[dict], grades: list[dict], session) -> in
     Пустой результат парсинга — БД не трогается (защита от смены формата).
     Студенты обновляются на месте, а не пересоздаются: Student.id хранится
     на клиенте (localStorage), и после wipe+insert старый id указывал бы
-    на другого студента. Telegram-привязки при этом сохраняются сами.
-    Студенты, пропавшие из ведомости, удаляются.
+    на другого студента. Telegram-привязки и сессии при этом сохраняются.
+    Студенты, пропавшие из ведомости, удаляются вместе с сессиями.
     """
     if not students and not grades:
         logger.error("Пустой результат парсинга успеваемости — БД не тронута")
@@ -729,7 +729,10 @@ async def upsert_grades(students: list[dict], grades: list[dict], session) -> in
     incoming = {s["code"] for s in students}
     gone = [code for code in existing if code not in incoming]
     if gone:
-        await session.execute(delete(Student).where(Student.code.in_(gone)))
+        gone_ids = [existing[code].id for code in gone]
+        await session.execute(
+            delete(AuthSession).where(AuthSession.student_id.in_(gone_ids)))
+        await session.execute(delete(Student).where(Student.id.in_(gone_ids)))
     group = await _get_or_create(session, Group, name="УЦП-25")
     by_code: dict[str, Student] = {}
     for s in students:

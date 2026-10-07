@@ -23,7 +23,7 @@ async def seed_demo() -> None:
             Student(group_id=group_id, code="петрова анна",
                     last_name="Петрова", first_name="Анна",
                     full_name="Петрова Анна Сергеевна",
-                    telegram_username="@petрова_анна", telegram_user_id=10002),
+                    telegram_username="@petrova_anna", telegram_user_id=10002),
         ])
         session.add_all([
             Subject(name="Математика"),

@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import Subject
 from ..routers.grades import _parse_description
-from ..schemas import SubjectOut
+from ..schemas import StudentOut, SubjectOut
 from ..subject_descriptions import norm_key
+from .auth import current_student
 
 router = APIRouter(prefix="/subjects", tags=["subjects"])
 
@@ -38,6 +39,7 @@ def _match(subjects: list[Subject], name: str) -> Subject | None:
 
 @router.get("", response_model=SubjectOut)
 async def get_subject(name: str,
+                      _me: StudentOut = Depends(current_student),
                       session: AsyncSession = Depends(get_session)):
     """Описание предмета по названию; 404 — нет в базе/макете."""
     subjects = (await session.execute(select(Subject))).scalars().all()

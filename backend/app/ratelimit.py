@@ -5,6 +5,7 @@
 """
 
 import time
+from collections.abc import Callable
 
 from fastapi import HTTPException, Request
 
@@ -24,14 +25,18 @@ def reset() -> None:
     _hits.clear()
 
 
-def rate_limit(prefix: str, limit: int, window_s: int):
+def rate_limit(prefix: str, limit: int, window_s: int,
+               skip: Callable[[], bool] = lambda: False):
     """Dependency-фабрика: не более `limit` запросов за `window_s` секунд с IP.
 
     Превышение — 429. Окно фиксированное, отсчёт — monotonic (не зависит
-    от перевода системных часов).
+    от перевода системных часов). skip() == True — лимит не применяется
+    (dev-режим входа: E2E логинится чаще лимита).
     """
 
     async def dep(request: Request) -> None:
+        if skip():
+            return
         now = time.monotonic()
         ip = request.client.host if request.client else "unknown"
         key = f"{prefix}:{ip}"

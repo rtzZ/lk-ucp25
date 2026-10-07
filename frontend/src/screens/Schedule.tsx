@@ -122,7 +122,7 @@ export default function Schedule({ group }: { group: string }) {
     let cancelled = false;
     const load = (initial: boolean) => {
       if (initial) setLoading(true);
-      api.schedule(group, kind)
+      api.schedule(kind)
         .then((d) => {
           if (!cancelled) {
             setItems(d);

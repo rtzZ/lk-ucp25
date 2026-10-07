@@ -5,7 +5,7 @@
 **Backend (Python 3.12):**
 ```powershell
 cd backend; py -m venv .venv; .\.venv\Scripts\python -m pip install -e ".[dev]"
-$env:DATABASE_URL="sqlite+aiosqlite:///./lk-dev.db"; $env:SEED_DEMO="1"
+$env:DATABASE_URL="sqlite+aiosqlite:///./lk-dev.db"; $env:SEED_DEMO="1"; $env:AUTH_DEV_MODE="1"
 .\.venv\Scripts\python -m uvicorn app.main:app --port 8001 --reload
 ```
 
@@ -26,7 +26,7 @@ cd backend; .\.venv\Scripts\python -m pytest tests/ -q
 # Frontend типы
 cd frontend; npx.cmd --no-install tsc --noEmit
 
-# E2E (нужны запущенные backend с SEED_DEMO=1 + frontend dev-сервер)
+# E2E (нужны запущенные backend с SEED_DEMO=1 AUTH_DEV_MODE=1 + frontend dev-сервер)
 cd frontend; npm.cmd run test:e2e
 ```
 
@@ -38,7 +38,7 @@ cd frontend; npm.cmd run test:e2e
 
 - **Бэкенд:** FastAPI + asyncpg + APScheduler **3.x** (не 4.x! — на PyPI только альфы). Синхронизация из Яндекс.Таблиц через headless Chromium (URL из edit-страницы, подпись покрывает query целиком).
 - **Фронтенд:** React 18 + TypeScript + Atlaskit. `React.StrictMode` **отключён** (`main.tsx:5`) — `@atlaskit/portal` v6 теряет контент popup/drawer при двойном монтировании в dev.
-- **Без аутентификации:** вход по ФИО (данные общие), `Student.code` = нормализованная "фамилия имя" (без отчества).
+- **Авторизация:** ФИО + временный пароль от Telegram-бота (`bot.py`, привязка через /start) → Bearer-токен; все данные за `current_student`. Локально/E2E: `AUTH_DEV_MODE=1` (пароль в ответе API). `Student.code` = нормализованная "фамилия имя" (без отчества).
 - **SQLAlchemy без relationships** — ленивая загрузка падает в async; только FK + явные select.
 - **Таблицы через `create_all`** при старте (Aleiambic подключить при первой эволюции схемы).
 - **Логирование:** JSON в stderr через `loguru.serialize=True`, middleware логирует каждый HTTP-запрос.
@@ -64,7 +64,8 @@ backend/
   app/db.py         — AsyncEngine + get_session (зависимость FastAPI)
   app/models.py     — Group, Student, Subject, Grade, ScheduleItem
   app/sync.py       — скачивание XLSX + парсинг + upsert
-  app/routers/      — auth, students, schedule, grades
+  app/routers/      — auth, schedule, grades, subjects
+  app/bot.py        — Telegram-бот (привязка), app/admin.py — CLI привязок
   tests/            — pytest: test_sync.py, test_api.py (sqlite)
 frontend/
   src/              — App, api-клиент, экраны Login/Schedule/Grades

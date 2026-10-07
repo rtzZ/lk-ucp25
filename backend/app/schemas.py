@@ -15,33 +15,41 @@ class StudentOut(BaseModel):
 
 
 class LoginIn(BaseModel):
-    """Вход — по фамилии (+имя для точности). Пароля нет: данные общие,
-    вход нужен лишь чтобы подсветить свои оценки и расписание."""
+    """Запрос временного пароля: фамилия + имя как в ведомости."""
 
     last_name: str
-    first_name: str = ""
+    first_name: str
 
 
-class TelegramLoginIn(BaseModel):
-    """Вход через Telegram: username + временный 6-значный код."""
+class PasswordLoginIn(LoginIn):
+    """Вход: ФИО + временный пароль из Telegram."""
 
-    telegram_username: str
-    code: str
-
-
-class LoginOut(BaseModel):
-    """Успешный вход либо подсказки-однофамильцы при неточном вводе."""
-
-    student: StudentOut | None = None
-    suggestions: list[StudentOut] = []
+    password: str
 
 
-class TelegramLoginOut(BaseModel):
-    """Ответ на telegram-login: код сгенерирован или ошибка."""
+class RequestPasswordOut(BaseModel):
+    """Ответ одинаков для всех ФИО (не раскрывает состав группы).
 
-    code_sent: bool | None = None
-    error: str | None = None
-    student: StudentOut | None = None
+    dev_password — только в AUTH_DEV_MODE (разработка/E2E).
+    """
+
+    sent: bool
+    dev_password: str | None = None
+
+
+class TokenOut(BaseModel):
+    """Токен сессии (Authorization: Bearer) и студент."""
+
+    token: str
+    student: StudentOut
+
+
+class AuthConfigOut(BaseModel):
+    """Настройки экрана входа."""
+
+    telegram: bool
+    bot_username: str
+    dev_mode: bool
 
 
 class SubjectDescription(BaseModel):

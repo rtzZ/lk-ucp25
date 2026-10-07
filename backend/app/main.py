@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from .logging import setup_logging
-from .routers import auth, grades, schedule, students, subjects
+from .routers import auth, grades, schedule, subjects
 from .tz import local_tz as _resolve_tz
 
 setup_logging()
@@ -32,12 +32,16 @@ async def _expire_job() -> None:
     на лету (`schedule._display_status`), джоб лишь прибирает базу.
     """
     from .db import SessionLocal
+    from .routers.auth import purge_expired_sessions
     from .routers.schedule import _expire_past_items
     try:
         async with SessionLocal() as session:
             n = await _expire_past_items(session)
+            expired = await purge_expired_sessions(session)
         if n:
             logger.info(f"Переведено пар в completed: {n}")
+        if expired:
+            logger.info(f"Удалено истёкших сессий: {expired}")
     except Exception as e:  # noqa: BLE001 — планировщик обязан пережить всё
         logger.error(f"Фоновое завершение пар упало: {e}")
 
@@ -73,7 +77,7 @@ def _parse_sync_times(raw: str) -> list[tuple[int, int]]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Таблицы (ленивый путь вместо Alembic до первой эволюции схемы),
-    демо-сид для разработки и планировщик синхронизации."""
+    демо-сид для разработки, Telegram-бот и планировщик синхронизации."""
     from .db import Base, engine
 
     if os.getenv("SKIP_DB_INIT") != "1":
@@ -94,8 +98,38 @@ async def lifespan(app: FastAPI):
         await seed_demo()
         logger.info("Загружены демо-данные (SEED_DEMO=1)")
 
-    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from .routers.auth import dev_mode
+    if dev_mode():
+        logger.warning("AUTH_DEV_MODE=1: пароли возвращаются в ответе API, "
+                       "Telegram не используется. Только для разработки!")
+    bot_task = _start_bot()
+    try:
+        async with _scheduler():
+            yield
+    finally:
+        if bot_task is not None:
+            bot_task.cancel()
 
+
+def _start_bot():
+    """Polling Telegram-бота (привязка аккаунтов), если бот настроен."""
+    import asyncio
+
+    from . import telegram
+    if not telegram.configured():
+        logger.warning("TELEGRAM_BOT_TOKEN/TELEGRAM_GROUP_ID не заданы — "
+                       "бот и вход через Telegram отключены")
+        return None
+    if os.getenv("TELEGRAM_POLLING") == "0":
+        logger.info("Polling Telegram-бота отключён (TELEGRAM_POLLING=0)")
+        return None
+    from .bot import run_polling
+    return asyncio.create_task(run_polling(), name="telegram-bot")
+
+
+@asynccontextmanager
+async def _scheduler():
+    """APScheduler: синк по SYNC_TIMES и фоновое завершение пар."""
     expire_hours = _int_env("EXPIRE_INTERVAL_HOURS", 1)
     if os.getenv("SYNC_INTERVAL_HOURS") is not None:
         logger.warning("SYNC_INTERVAL_HOURS больше не используется — "
@@ -155,7 +189,6 @@ async def log_requests(request: Request, call_next):
 
 
 app.include_router(auth.router)
-app.include_router(students.router)
 app.include_router(schedule.router)
 app.include_router(grades.router)
 app.include_router(subjects.router)

@@ -1,4 +1,4 @@
-"""Оценки конкретного студента (все данные общие, свои подсвечиваются)."""
+"""Оценки: только свои (студент — из токена сессии)."""
 
 import json
 
@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Grade, Subject
-from ..schemas import GradeOut, SubjectDescription
+from ..schemas import GradeOut, StudentOut, SubjectDescription
+from .auth import current_student
 
 router = APIRouter(prefix="/grades", tags=["grades"])
 
@@ -33,12 +34,13 @@ def _parse_description(raw: str | None) -> SubjectDescription:
 
 
 @router.get("", response_model=list[GradeOut])
-async def list_grades(student_id: int, semester: str = "",
+async def list_grades(semester: str = "",
+                      me: StudentOut = Depends(current_student),
                       session: AsyncSession = Depends(get_session)):
-    """Итоговые оценки студента, опционально за семестр."""
+    """Итоговые оценки текущего студента, опционально за семестр."""
     stmt = (select(Grade, Subject.name, Subject.description)
             .join(Subject, Grade.subject_id == Subject.id)
-            .where(Grade.student_id == student_id))
+            .where(Grade.student_id == me.id))
     if semester:
         stmt = stmt.where(Grade.semester == semester)
     stmt = stmt.order_by(Grade.semester, Subject.name)

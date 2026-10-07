@@ -16,7 +16,9 @@ backend/            FastAPI (Python 3.12): API, парсер таблиц, пл�
     sync.py         скачивание XLSX + парсинг + upsert
     seed.py         демо-данные (SEED_DEMO=1)
     schemas.py      Pydantic-схемы ответов
-    routers/        auth, students, schedule, grades
+    routers/        auth, schedule, grades, subjects
+    bot.py          Telegram-бот: привязка аккаунта (long polling)
+    admin.py        CLI: список/снятие привязок Telegram
     logging.py      JSON-логирование (loguru)
   tests/            pytest: test_sync.py, test_api.py
   requirements.lock зафиксированные версии (pip install -r requirements.lock)
@@ -79,7 +81,10 @@ npm.cmd run test:e2e   # E2E (нужны запущенные backend SEED_DEMO=
 | `SEED_DEMO` | — | `1` — загрузить демо-данные при старте |
 | `SKIP_DB_INIT` | — | `1` — пропустить create_all (нужно тестам) |
 | `FRONTEND_URL` | `http://localhost:5173` | CORS-origin фронтенда |
-| `TELEGRAM_BOT_TOKEN` | — | Токен бота для Telegram-входа (секрет!) |
-| `TELEGRAM_GROUP_ID` | — | ID группы/канала для проверки членства |
-| `VITE_API_URL` | `http://localhost:8000` | Адрес API для фронтенда |
+| `TELEGRAM_BOT_TOKEN` | — | Токен бота: вход только через него (секрет!) |
+| `TELEGRAM_GROUP_ID` | — | ID группы курса: только её участники могут войти |
+| `TELEGRAM_POLLING` | — | `0` — не запускать polling бота (бот работает в другом процессе) |
+| `SESSION_TTL_DAYS` | `30` | Срок жизни сессии |
+| `AUTH_DEV_MODE` | — | `1` — пароль в ответе API вместо Telegram (только разработка/E2E, без токена бота) |
+| `VITE_API_URL` | `http://localhost:8001` | Адрес API для фронтенда |
 | `LOG_LEVEL` | `INFO` | Уровень логов |

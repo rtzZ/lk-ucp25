@@ -1,6 +1,6 @@
 /** HTTP-клиент backend API. */
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:8001";
 
 export interface Student {
   id: number;
@@ -53,11 +53,53 @@ export interface ScheduleItem {
   link: string;
 }
 
+const TOKEN_KEY = "lk-token";
+
+/** Токен сессии (Authorization: Bearer). localStorage недоступен — без сессии. */
+export const session = {
+  get(): string | null {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set(token: string) {
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch {
+      /* приватный режим: сессия живёт до перезагрузки */
+    }
+  },
+  clear() {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* нечего чистить */
+    }
+  },
+};
+
+/** Ответ 401: токен истёк/отозван — App переводит на экран входа. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("unauthorized");
+  }
+}
+
+let onUnauthorized: () => void = () => {};
+export function setUnauthorizedHandler(fn: () => void) {
+  onUnauthorized = fn;
+}
+
 async function req(path: string, init?: RequestInit, timeoutMs = 15000): Promise<Response> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const token = session.get();
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   try {
-    return await fetch(`${API}${path}`, { ...init, signal: ctrl.signal });
+    return await fetch(`${API}${path}`, { ...init, headers, signal: ctrl.signal });
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
       throw new Error(`timeout ${path}`);
@@ -70,6 +112,10 @@ async function req(path: string, init?: RequestInit, timeoutMs = 15000): Promise
 
 async function get<T>(path: string): Promise<T> {
   const r = await req(path);
+  if (r.status === 401) {
+    onUnauthorized();
+    throw new UnauthorizedError();
+  }
   if (!r.ok) throw new Error(`${r.status} ${path}`);
   return r.json() as Promise<T>;
 }
@@ -82,51 +128,58 @@ async function postJson(path: string, body: unknown): Promise<Response> {
   });
 }
 
-export const api = {
-  groups: () => get<string[]>("/schedule/groups"),
-  students: (group: string) =>
-    get<Student[]>(`/students?group=${encodeURIComponent(group)}`),
-  /** Студент по стабильному code; null — больше нет в ведомости (404). */
-  studentByCode: async (code: string): Promise<Student | null> => {
-    const r = await req(`/students/by_code?code=${encodeURIComponent(code)}`);
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error(`${r.status} /students/by_code`);
-    return r.json() as Promise<Student>;
-  },
-  login: async (last_name: string, first_name: string) => {
-    const r = await postJson("/auth/login", { last_name, first_name });
+/** Ошибка API с текстом для пользователя (detail backend'а). */
+async function apiError(r: Response, fallback: string): Promise<Error> {
+  try {
     const body = await r.json();
-    if (!r.ok) {
-      const err = new Error("login failed") as Error & {
-        suggestions?: Student[];
-      };
-      err.suggestions = body?.detail?.suggestions ?? [];
-      throw err;
-    }
-    return body.student as Student;
-  },
-  telegramRequestCode: async (username: string) => {
-    const r = await postJson("/auth/telegram_request_code", {
-      telegram_username: username,
-    });
+    if (typeof body?.detail === "string") return new Error(body.detail);
+  } catch {
+    /* не JSON */
+  }
+  return new Error(fallback);
+}
+
+export interface AuthConfig {
+  telegram: boolean;
+  bot_username: string;
+  dev_mode: boolean;
+}
+
+export interface RequestPasswordResult {
+  sent: boolean;
+  dev_password: string | null;
+}
+
+export const api = {
+  authConfig: () => get<AuthConfig>("/auth/config"),
+  requestPassword: async (
+    last_name: string,
+    first_name: string
+  ): Promise<RequestPasswordResult> => {
+    const r = await postJson("/auth/request_password", { last_name, first_name });
+    if (!r.ok) throw await apiError(r, "Не удалось запросить пароль");
     return r.json();
   },
-  telegramLogin: async (username: string, code: string) => {
-    const r = await postJson("/auth/telegram_login", {
-      telegram_username: username,
-      code,
-    });
-    const body = await r.json();
-    if (!r.ok) throw new Error(body.detail || "Telegram login failed");
-    return body.student as Student;
+  login: async (last_name: string, first_name: string, password: string) => {
+    const r = await postJson("/auth/login", { last_name, first_name, password });
+    if (!r.ok) throw await apiError(r, "Не удалось войти");
+    const body = (await r.json()) as { token: string; student: Student };
+    session.set(body.token);
+    return body.student;
   },
-  schedule: (group: string, kind = "") =>
+  logout: async () => {
+    try {
+      await postJson("/auth/logout", {});
+    } finally {
+      session.clear();
+    }
+  },
+  me: () => get<Student>("/auth/me"),
+  schedule: (kind = "") =>
     get<ScheduleItem[]>(
-      `/schedule?group=${encodeURIComponent(group)}` +
-        (kind ? `&kind=${kind}` : "")
+      "/schedule" + (kind ? `?kind=${encodeURIComponent(kind)}` : "")
     ),
-  grades: (student_id: number) =>
-    get<Grade[]>(`/grades?student_id=${student_id}`),
+  grades: () => get<Grade[]>("/grades"),
   subject: (name: string) =>
     get<Subject>(`/subjects?name=${encodeURIComponent(name)}`),
 };

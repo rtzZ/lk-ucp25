@@ -7,7 +7,13 @@ import ThemeIcon from "@atlaskit/icon/core/theme";
 import Grades from "./screens/Grades";
 import Login from "./screens/Login";
 import Schedule from "./screens/Schedule";
-import { api, type Student } from "./api";
+import {
+  api,
+  session,
+  setUnauthorizedHandler,
+  UnauthorizedError,
+  type Student,
+} from "./api";
 import {
   applyTheme,
   cycleTheme,
@@ -18,47 +24,49 @@ import {
 } from "./theme";
 import "./styles.css";
 
+// Старые ключи (вход без пароля) — больше не используются.
+for (const key of ["lk-student", "lk-group"]) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* storage недоступен */
+  }
+}
+
 export default function App() {
-  const [student, setStudent] = useState<Student | null>(() => {
-    try {
-      const raw = localStorage.getItem("lk-student");
-      return raw ? (JSON.parse(raw) as Student) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [group, setGroup] = useState(
-    () => localStorage.getItem("lk-group") ?? "УЦП-25"
+  const [student, setStudent] = useState<Student | null>(null);
+  // checking — сверяем сохранённый токен; offline — сервер недоступен.
+  const [status, setStatus] = useState<"checking" | "ready" | "offline">(
+    () => (session.get() ? "checking" : "ready")
   );
   const [tab, setTab] = useState<"schedule" | "grades">("schedule");
   const [theme, setTheme] = useState<ThemeMode>(storedTheme);
-  // Студент из localStorage не проверен: его id мог устареть после
-  // синхронизации, поэтому оценки грузим только после сверки по code.
-  const [verified, setVerified] = useState(false);
+
+  const restore = () => {
+    if (!session.get()) {
+      setStatus("ready");
+      return;
+    }
+    setStatus("checking");
+    api
+      .me()
+      .then((s) => {
+        setStudent(s);
+        setStatus("ready");
+      })
+      .catch((e) => {
+        // 401 уже обработан (токен сброшен) — экран входа.
+        setStatus(e instanceof UnauthorizedError ? "ready" : "offline");
+      });
+  };
 
   useEffect(() => {
-    if (!student) return;
-    let cancelled = false;
-    api
-      .studentByCode(student.code)
-      .then((fresh) => {
-        if (cancelled) return;
-        if (fresh === null) {
-          logout(); // студента больше нет в ведомости
-          return;
-        }
-        setStudent(fresh);
-        localStorage.setItem("lk-student", JSON.stringify(fresh));
-        setVerified(true);
-      })
-      .catch(() => {
-        // Нет связи — показываем сохранённое; Grades сам покажет ошибку.
-        if (!cancelled) setVerified(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Сверка только при старте; после входа данные свежие.
+    // Любой 401 (токен истёк/отозван) — на экран входа.
+    setUnauthorizedHandler(() => {
+      session.clear();
+      setStudent(null);
+    });
+    restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -67,17 +75,14 @@ export default function App() {
     void applyTheme(theme);
   }, [theme]);
 
-  const login = (s: Student, g: string) => {
+  const login = (s: Student) => {
     setStudent(s);
-    setVerified(true);
-    setGroup(g);
-    localStorage.setItem("lk-student", JSON.stringify(s));
-    localStorage.setItem("lk-group", g);
+    setTab("schedule");
   };
 
   const logout = () => {
+    void api.logout().catch(() => {});
     setStudent(null);
-    localStorage.removeItem("lk-student");
   };
 
   const themeButton = (
@@ -89,6 +94,24 @@ export default function App() {
       onClick={() => setTheme(cycleTheme(theme))}
     />
   );
+
+  if (status !== "ready") {
+    return (
+      <main className="page">
+        <div className="theme-toggle-row">{themeButton}</div>
+        {status === "checking" ? (
+          <p className="meta">Загрузка…</p>
+        ) : (
+          <div className="card">
+            <p className="error">Нет связи с сервером. Проверьте соединение.</p>
+            <div className="actions">
+              <Button onClick={restore}>Повторить</Button>
+            </div>
+          </div>
+        )}
+      </main>
+    );
+  }
 
   if (!student) {
     return (
@@ -106,7 +129,7 @@ export default function App() {
           {themeButton}
           <div>
             <strong>{student.full_name || `${student.last_name} ${student.first_name}`}</strong>
-            <div className="meta">{group}</div>
+            <div className="meta">{student.group}</div>
           </div>
         </div>
         <Button appearance="subtle" onClick={logout}>
@@ -127,13 +150,7 @@ export default function App() {
           Оценки
         </button>
       </nav>
-      {tab === "schedule" ? (
-        <Schedule group={group} />
-      ) : verified ? (
-        <Grades student={student} />
-      ) : (
-        <p className="meta">Загрузка…</p>
-      )}
+      {tab === "schedule" ? <Schedule group={student.group} /> : <Grades student={student} />}
     </main>
   );
 }

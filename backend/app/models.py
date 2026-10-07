@@ -8,6 +8,8 @@
 и те же студенты записаны то с отчеством, то без).
 """
 
+import datetime
+
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,7 +26,10 @@ class Group(Base):
 
 
 class Student(Base):
-    """Студент. Вход — по фамилии+имени (свои данные подсвечиваются)."""
+    """Студент. Вход — ФИО + временный пароль от Telegram-бота.
+
+    telegram_user_id проставляет бот при первой привязке (см. bot.py).
+    """
 
     __tablename__ = "students"
 
@@ -100,3 +105,20 @@ class ScheduleItem(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
     note: Mapped[str] = mapped_column(String(1024), default="")
     link: Mapped[str] = mapped_column(String(1024), default="")
+
+
+class AuthSession(Base):
+    """Сессия входа: токен выдаётся после пароля из Telegram.
+
+    Хранится только sha256 токена — утечка БД не даёт войти чужими сессиями.
+    expires_at — naive UTC.
+    """
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    student_id: Mapped[int] = mapped_column(
+        ForeignKey("students.id"), index=True
+    )
+    expires_at: Mapped[datetime.datetime] = mapped_column()

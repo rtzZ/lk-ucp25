@@ -87,7 +87,7 @@ export default function Grades({ student }: { student: Student }) {
 
   useEffect(() => {
     setLoading(true);
-    api.grades(student.id)
+    api.grades()
       .then((g) => {
         setGrades(g);
         setLoadError("");

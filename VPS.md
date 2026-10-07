@@ -52,11 +52,21 @@ nano .env
 | `YANDEX_SCHEDULE_URL` | edit-ссылка таблицы расписания |
 | `YANDEX_GRADES_URL` | edit-ссылка таблицы успеваемости |
 | `FRONTEND_URL` | `https://your-domain.com` (CORS-origin) |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_GROUP_ID` | если нужен Telegram-вход (токен — только сюда, никогда в код) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_GROUP_ID` | **обязательно**: вход только через бота (токен — только сюда, никогда в код). Бота добавить в группу курса |
 
 **НЕ ставить в проде:** `SEED_DEMO=1` (зальёт демо-студентов Иванова/Петрову
 в боевую базу). Chromium для синхронизации уже внутри образа backend
-(`playwright install` на сервере не нужен).
+(`playwright install` на сервере не нужен). `AUTH_DEV_MODE=1` тоже не ставить:
+при заданном `TELEGRAM_BOT_TOKEN` он игнорируется, но без бота отдаёт
+пароли прямо в ответе API.
+
+**Привязки Telegram.** Студент пишет боту `/start` и вводит фамилию и имя.
+Если ФИО занял чужой аккаунт или студент сменил Telegram:
+
+```bash
+docker compose exec app python -m app.admin bindings           # список
+docker compose exec app python -m app.admin unbind "Иванов Иван"
+```
 
 ---
 

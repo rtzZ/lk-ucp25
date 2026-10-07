@@ -1,5 +1,8 @@
 """API-тесты: auth, students, schedule, grades (sqlite, без Postgres)."""
 
+import datetime
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -7,7 +10,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db import Base, get_session
 from app.main import app
-from app.models import Grade, Group, ScheduleItem, Student, Subject
+from app.models import AuthSession, Grade, Group, ScheduleItem, Student, Subject
+from app.routers.auth import _hash
+
+FAR_FUTURE = datetime.datetime(2100, 1, 1)
+IVANOV = {"Authorization": "Bearer tok-ivanov"}
+PETROV = {"Authorization": "Bearer tok-petrov"}
 
 engine = create_async_engine("sqlite+aiosqlite://")
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
@@ -57,6 +65,12 @@ async def _seed():
                          subject_text="Дедлайн ДЗ-1", kind="deadline",
                          status="active"),
         ])
+        s.add_all([
+            AuthSession(token_hash=_hash("tok-ivanov"), student_id=st1.id,
+                        expires_at=FAR_FUTURE),
+            AuthSession(token_hash=_hash("tok-petrov"), student_id=st2.id,
+                        expires_at=FAR_FUTURE),
+        ])
         await s.commit()
         return st1.id, st2.id
 
@@ -74,7 +88,7 @@ def client():
             yield s
 
     app.dependency_overrides[get_session] = override
-    with TestClient(app) as c:
+    with TestClient(app, headers=IVANOV) as c:
         c.ids = ids
         yield c
     app.dependency_overrides.clear()
@@ -84,64 +98,29 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
-def test_login_exact(client):
-    r = client.post("/auth/login",
-                    json={"last_name": "Иванов", "first_name": "Иван"})
-    assert r.status_code == 200
-    assert r.json()["student"]["code"] == "иванов иван"
-    assert r.json()["student"]["group"] == "УЦП-25"
-
-
-def test_login_last_name_only_single_match(client):
-    r = client.post("/auth/login", json={"last_name": "Петров"})
-    assert r.status_code == 200
-    assert r.json()["student"]["first_name"] == "Петр"
-
-
-def test_login_unknown_with_suggestions(client):
-    r = client.post("/auth/login",
-                    json={"last_name": "Иванов", "first_name": "Сергей"})
-    assert r.status_code == 404
-    suggestions = r.json()["detail"]["suggestions"]
-    assert any(s["first_name"] == "Иван" for s in suggestions)
-
-
-def test_login_unknown_no_suggestions(client):
-    r = client.post("/auth/login", json={"last_name": "Несуществующий"})
-    assert r.status_code == 404
-    assert r.json()["detail"]["suggestions"] == []
-
-
-def test_students_list_and_card(client):
-    students = client.get("/students?group=УЦП-25").json()
-    assert len(students) == 2
-    card = client.get(f"/students/{client.ids[0]}").json()
-    assert card["full_name"] == "Иванов Иван Иванович"
-    assert client.get("/students/9999").status_code == 404
-
-
 def test_schedule_filters(client):
-    all_items = client.get("/schedule?group=УЦП-25").json()
+    all_items = client.get("/schedule").json()
     assert len(all_items) == 3
     assert all_items[0]["date"] == "2026-02-09"  # порядок по дате/времени
-    lessons = client.get("/schedule?group=УЦП-25&kind=lesson").json()
+    lessons = client.get("/schedule?kind=lesson").json()
     assert len(lessons) == 2
-    day = client.get("/schedule?group=УЦП-25&date_from=2026-02-10"
+    day = client.get("/schedule?date_from=2026-02-10"
                      "&date_to=2026-02-10").json()
     assert len(day) == 1 and day[0]["status"] == "cancelled"
     assert all_items[0]["link"] == "https://video.example.com/math-1"
-    assert client.get("/schedule/groups").json() == ["УЦП-25"]
 
 
 def test_grades(client):
-    grades = client.get(f"/grades?student_id={client.ids[0]}").json()
+    """Оценки — только свои: студент берётся из токена, не из запроса."""
+    grades = client.get("/grades").json()
     assert len(grades) == 1
     g = grades[0]
     assert (g["subject"], g["value"], g["score"]) == ("Математика", "5", 92.0)
-    assert client.get(
-        f"/grades?student_id={client.ids[0]}&semester=2 семестр").json() == []
-    other = client.get(f"/grades?student_id={client.ids[1]}").json()
+    assert client.get("/grades?semester=2 семестр").json() == []
+    other = client.get("/grades", headers=PETROV).json()
     assert other[0]["value"] == "4"
+    # чужой student_id в query игнорируется
+    assert client.get(f"/grades?student_id={client.ids[1]}").json()[0]["value"] == "5"
 
 
 def test_grades_include_description(client):
@@ -158,7 +137,7 @@ def test_grades_include_description(client):
 
     asyncio.run(run())
     try:
-        grades = client.get(f"/grades?student_id={client.ids[0]}").json()
+        grades = client.get("/grades").json()
         d = grades[0]["description"]
         assert d["about"].startswith("Дисциплина учит проводить исследования")
         assert d["content_title"] == "Содержание дисциплины"
@@ -334,7 +313,7 @@ def test_live_status_in_api(client):
             s.add(it)
             await s.commit()
         try:
-            rows = client.get("/schedule?group=УЦП-25").json()
+            rows = client.get("/schedule").json()
             live = [r for r in rows if r["subject_text"] == "ЖИВАЯ ПАРА"]
             assert len(live) == 1 and live[0]["status"] == "live"
         finally:
@@ -465,22 +444,6 @@ def test_rate_limit_blocks():
     ratelimit.reset()
 
 
-def test_telegram_not_configured(client, monkeypatch):
-    """Без TELEGRAM_BOT_TOKEN — понятная ошибка вместо падения."""
-    import app.routers.auth as auth_mod
-
-    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    monkeypatch.delenv("TELEGRAM_GROUP_ID", raising=False)
-    assert not auth_mod._telegram_configured()
-    r = client.post("/auth/telegram_request_code",
-                    json={"telegram_username": "@ivanov_ivan", "code": ""})
-    assert r.status_code == 200
-    assert "не настроен" in r.json()["error"]
-    r = client.post("/auth/telegram_login",
-                    json={"telegram_username": "@ivanov_ivan", "code": "000000"})
-    assert r.status_code == 503
-
-
 def test_parse_sync_times():
     """SYNC_TIMES: валидные пары проходят, мусор пропускается."""
     from app.main import _parse_sync_times
@@ -539,7 +502,7 @@ def test_schedule_read_does_not_write(client):
     """GET /schedule показывает completed, но БД не меняет."""
     import asyncio
 
-    rows = client.get("/schedule?group=УЦП-25").json()
+    rows = client.get("/schedule").json()
     past = next(r for r in rows if r["date"] == "2026-02-09")
     assert past["status"] == "completed"  # посчитано на лету
 
@@ -631,6 +594,9 @@ def test_upsert_grades_keeps_student_ids():
         async with S() as s:
             await upsert_grades(first, [gr("иванов иван"), gr("петров петр")], s)
             before = await ids(s)
+            s.add(AuthSession(token_hash="h", student_id=before["иванов иван"],
+                              expires_at=FAR_FUTURE))
+            await s.commit()
         second = [st("петров петр", "Петров", "Петр"),
                   st("сидоров сидор", "Сидоров", "Сидор")]
         async with S() as s:
@@ -639,6 +605,7 @@ def test_upsert_grades_keeps_student_ids():
             after = await ids(s)
             assert after["петров петр"] == before["петров петр"]
             assert "иванов иван" not in after
+            assert (await s.execute(select(AuthSession))).first() is None
             assert set(after) == {"петров петр", "сидоров сидор"}
             owners = {g.student_id for g in
                       (await s.execute(select(Grade))).scalars()}
@@ -648,102 +615,351 @@ def test_upsert_grades_keeps_student_ids():
     asyncio.run(run())
 
 
-def test_student_by_code(client):
-    """/students/by_code: по стабильному коду, неизвестный — 404."""
-    r = client.get("/students/by_code", params={"code": "иванов иван"})
-    assert r.status_code == 200
-    assert r.json()["id"] == client.ids[0]
-    assert client.get("/students/by_code",
-                      params={"code": "нет такого"}).status_code == 404
 
 
-def _telegram_student(username: str, user_id: int) -> None:
-    """Студент с telegram-привязкой в общей тестовой БД."""
+
+
+# --- Авторизация: временный пароль от Telegram-бота -> токен сессии ---
+
+NO_AUTH = {"Authorization": ""}
+
+
+@pytest.fixture
+def auth_env(monkeypatch):
+    """Чистое состояние лимитов/паролей; бот «настроен» без сети."""
+    import app.routers.auth as auth_mod
+    from app import ratelimit
+
+    ratelimit.reset()
+    auth_mod._passwords.clear()
+    monkeypatch.delenv("AUTH_DEV_MODE", raising=False)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_GROUP_ID", "-100")
+    yield auth_mod
+    ratelimit.reset()
+    auth_mod._passwords.clear()
+
+
+def _set_tg(student_id: int, user_id: int | None) -> None:
     import asyncio
 
     async def run():
         async with TestSession() as s:
-            gid = (await s.execute(select(Group).where(
-                Group.name == "УЦП-25"))).scalar_one().id
-            s.add(Student(group_id=gid, code=f"tg {username}",
-                          last_name="Тг", first_name=username,
-                          full_name=f"Тг {username}",
-                          telegram_username=username, telegram_user_id=user_id))
+            st = await s.get(Student, student_id)
+            st.telegram_user_id = user_id
             await s.commit()
 
     asyncio.run(run())
 
 
-def test_telegram_code_is_six_digits(client, monkeypatch):
-    """Код — строго 6 цифр (randbelow(10**6)), уходит в ЛС и запоминается."""
-    import app.routers.auth as auth_mod
-    from app import ratelimit
-
-    ratelimit.reset()
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
-    monkeypatch.setenv("TELEGRAM_GROUP_ID", "-100")
-    _telegram_student("@six_digits", 777001)
-    bounds = []
-    real = auth_mod.secrets.randbelow
-    monkeypatch.setattr(auth_mod.secrets, "randbelow",
-                        lambda n: bounds.append(n) or real(n))
-
-    class Resp:
-        def __init__(self, data):
-            self._data = data
-
-        def json(self):
-            return self._data
-
-    class FakeClient:
-        def __init__(self, *a, **kw):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *a):
-            return False
-
-        async def get(self, *a, **kw):
-            return Resp({"ok": True, "result": {"status": "member"}})
-
-        async def post(self, *a, **kw):
-            return Resp({"ok": True})
-
-    monkeypatch.setattr(auth_mod.httpx, "AsyncClient", FakeClient)
-    r = client.post("/auth/telegram_request_code",
-                    json={"telegram_username": "@six_digits", "code": ""})
-    assert r.json()["code_sent"] is True
-    assert bounds == [1_000_000]
-    code = auth_mod._temp_codes["777001"][0]
-    assert len(code) == 6 and code.isdigit()
-    r = client.post("/auth/telegram_login",
-                    json={"telegram_username": "@six_digits", "code": code})
-    assert r.status_code == 200 and r.json()["student"]["code"] == "tg @six_digits"
-    ratelimit.reset()
+def test_endpoints_require_token(client):
+    """Без токена/с чужим токеном — 401 везде, кроме /health и входа."""
+    for path in ("/grades", "/schedule", "/subjects?name=Математика", "/auth/me"):
+        assert client.get(path, headers=NO_AUTH).status_code == 401, path
+        assert client.get(path, headers={"Authorization": "Bearer nope"}
+                          ).status_code == 401, path
+    assert client.get("/health", headers=NO_AUTH).status_code == 200
+    assert client.get("/auth/config", headers=NO_AUTH).status_code == 200
+    # публичного списка студентов больше нет
+    assert client.get("/students", headers=NO_AUTH).status_code == 404
 
 
-def test_telegram_code_burns_after_attempts(client, monkeypatch):
-    """После _CODE_MAX_ATTEMPTS неверных вводов код сгорает (даже верный)."""
-    import time
+def test_me(client):
+    me = client.get("/auth/me").json()
+    assert me["code"] == "иванов иван" and me["group"] == "УЦП-25"
+    assert client.get("/auth/me", headers=PETROV).json()["code"] == "петров петр"
 
-    import app.routers.auth as auth_mod
-    from app import ratelimit
 
-    ratelimit.reset()
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
-    monkeypatch.setenv("TELEGRAM_GROUP_ID", "-100")
-    _telegram_student("@brute", 777002)
-    auth_mod._temp_codes["777002"] = ["123456", time.monotonic() + 60, 0]
-    body = {"telegram_username": "@brute", "code": "000000"}
-    for _ in range(auth_mod._CODE_MAX_ATTEMPTS - 1):
-        r = client.post("/auth/telegram_login", json=body)
-        assert r.json()["detail"] == "Неверный код."
-    r = client.post("/auth/telegram_login", json=body)
-    assert "Слишком много" in r.json()["detail"]
-    assert "777002" not in auth_mod._temp_codes
-    r = client.post("/auth/telegram_login",
-                    json={"telegram_username": "@brute", "code": "123456"})
-    assert r.status_code == 400 and "не найден" in r.json()["detail"]
-    ratelimit.reset()
+def test_expired_session_rejected(client):
+    import asyncio
+
+    async def run():
+        async with TestSession() as s:
+            s.add(AuthSession(token_hash=_hash("tok-old"), student_id=client.ids[0],
+                              expires_at=datetime.datetime(2000, 1, 1)))
+            await s.commit()
+
+    asyncio.run(run())
+    r = client.get("/auth/me", headers={"Authorization": "Bearer tok-old"})
+    assert r.status_code == 401
+
+
+def test_request_password_not_configured(client, auth_env, monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN")
+    r = client.post("/auth/request_password", headers=NO_AUTH,
+                    json={"last_name": "Иванов", "first_name": "Иван"})
+    assert r.status_code == 503
+
+
+def test_password_via_telegram(client, auth_env, monkeypatch):
+    """Пароль уходит боту привязанного участника группы; вход -> токен; выход."""
+    from app import telegram
+
+    sent: list[tuple[int, str]] = []
+    member = {"ok": True}
+
+    async def fake_member(uid):
+        return member["ok"]
+
+    async def fake_send(chat_id, text):
+        sent.append((chat_id, text))
+
+    monkeypatch.setattr(telegram, "is_group_member", fake_member)
+    monkeypatch.setattr(telegram, "send_message", fake_send)
+    _set_tg(client.ids[0], 555)
+    try:
+        body = {"last_name": "иванов", "first_name": " Иван "}
+        r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
+        assert r.json() == {"sent": True, "dev_password": None}
+        assert len(sent) == 1 and sent[0][0] == 555
+        password = re.search(r"\b(\d{6})\b", sent[0][1]).group(1)
+
+        # повтор в пределах cooldown — без второго сообщения
+        client.post("/auth/request_password", json=body, headers=NO_AUTH)
+        assert len(sent) == 1
+
+        r = client.post("/auth/login", headers=NO_AUTH,
+                        json={**body, "password": password})
+        assert r.status_code == 200
+        token = r.json()["token"]
+        assert r.json()["student"]["code"] == "иванов иван"
+        hdr = {"Authorization": f"Bearer {token}"}
+        assert client.get("/grades", headers=hdr).json()[0]["value"] == "5"
+
+        # пароль одноразовый
+        r = client.post("/auth/login", headers=NO_AUTH,
+                        json={**body, "password": password})
+        assert r.status_code == 400
+
+        assert client.post("/auth/logout", headers=hdr).status_code == 204
+        assert client.get("/auth/me", headers=hdr).status_code == 401
+    finally:
+        _set_tg(client.ids[0], None)
+
+
+def test_request_password_does_not_leak(client, auth_env, monkeypatch):
+    """Неизвестное ФИО / не привязан / не в группе — одинаковый ответ, без отправки."""
+    from app import telegram
+
+    sent = []
+
+    async def not_member(uid):
+        return False
+
+    async def fake_send(chat_id, text):
+        sent.append(chat_id)
+
+    monkeypatch.setattr(telegram, "is_group_member", not_member)
+    monkeypatch.setattr(telegram, "send_message", fake_send)
+    _set_tg(client.ids[0], 555)
+    try:
+        for body in ({"last_name": "Нет", "first_name": "Такого"},
+                     {"last_name": "Петров", "first_name": "Петр"},  # не привязан
+                     {"last_name": "Иванов", "first_name": "Иван"}):  # не в группе
+            r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
+            assert r.json() == {"sent": True, "dev_password": None}
+        assert sent == []
+    finally:
+        _set_tg(client.ids[0], None)
+
+
+def test_request_password_telegram_down(client, auth_env, monkeypatch):
+    from app import telegram
+
+    async def boom(uid):
+        raise telegram.TelegramError("сеть: ConnectError")
+
+    monkeypatch.setattr(telegram, "is_group_member", boom)
+    _set_tg(client.ids[0], 555)
+    try:
+        r = client.post("/auth/request_password", headers=NO_AUTH,
+                        json={"last_name": "Иванов", "first_name": "Иван"})
+        assert r.status_code == 502
+        assert "t" not in r.json()["detail"].split()  # токен не утекает
+    finally:
+        _set_tg(client.ids[0], None)
+
+
+def test_dev_mode_flow_and_attempt_limit(client, auth_env, monkeypatch):
+    """AUTH_DEV_MODE: пароль в ответе; 5 неверных вводов сжигают пароль."""
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN")
+    monkeypatch.setenv("AUTH_DEV_MODE", "1")
+    assert client.get("/auth/config", headers=NO_AUTH).json()["dev_mode"] is True
+    body = {"last_name": "Петров", "first_name": "Петр"}
+    r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
+    password = r.json()["dev_password"]
+    assert len(password) == 6 and password.isdigit()
+    wrong = "000000" if password != "000000" else "111111"
+    for _ in range(auth_env._PASSWORD_MAX_ATTEMPTS):
+        assert client.post("/auth/login", headers=NO_AUTH,
+                           json={**body, "password": wrong}).status_code == 400
+    # даже верный пароль уже сгорел
+    assert client.post("/auth/login", headers=NO_AUTH,
+                       json={**body, "password": password}).status_code == 400
+    r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
+    r = client.post("/auth/login", headers=NO_AUTH,
+                    json={**body, "password": r.json()["dev_password"]})
+    assert r.status_code == 200 and r.json()["student"]["code"] == "петров петр"
+
+
+def test_dev_mode_off_when_bot_configured(auth_env, monkeypatch):
+    """AUTH_DEV_MODE игнорируется при настоящем боте (пароль не утечёт в ответ)."""
+    monkeypatch.setenv("AUTH_DEV_MODE", "1")
+    assert not auth_env.dev_mode()
+
+
+# --- Бот: привязка Telegram-аккаунта к студенту ---
+
+def _bot_db():
+    """Отдельная БД: Иванов (свободен), Петров (привязан к tg 900)."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    eng = create_async_engine("sqlite+aiosqlite://")
+    S = async_sessionmaker(eng, expire_on_commit=False)
+
+    async def init():
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with S() as s:
+            s.add(Group(name="УЦП-25"))
+            await s.flush()
+            gid = (await s.execute(select(Group))).scalar_one().id
+            s.add_all([
+                Student(group_id=gid, code="иванов иван", last_name="Иванов",
+                        first_name="Иван", full_name="Иванов Иван"),
+                Student(group_id=gid, code="петров пётр", last_name="Петров",
+                        first_name="Пётр", full_name="Петров Пётр",
+                        telegram_user_id=900, telegram_username="@petrov"),
+            ])
+            await s.commit()
+
+    return eng, S, init
+
+
+def test_bot_binding(monkeypatch):
+    import asyncio
+
+    from app import bot, telegram
+
+    members = {100, 200, 900}
+
+    async def fake_member(uid):
+        return uid in members
+
+    monkeypatch.setattr(telegram, "is_group_member", fake_member)
+    bot._bind_hits.clear()
+    eng, S, init = _bot_db()
+
+    async def say(uid, text, chat="private", username="nick"):
+        async with S() as s:
+            return await bot.handle_message(s, user_id=uid, username=username,
+                                            chat_type=chat, text=text)
+
+    async def run():
+        await init()
+        assert await say(100, "Иванов Иван", chat="supergroup") is None
+        assert await say(300, "/start") == bot.NOT_MEMBER
+        assert await say(100, "/start") == bot.ASK_NAME
+        assert await say(100, "Иванов") == bot.ASK_NAME
+        assert "Не нашёл" in await say(100, "Сидоров Сидор")
+        # занятое ФИО (ё/е не важны) — отказ
+        assert "уже привязан" in await say(200, "петров петр")
+        # привязка, регистр и пробелы не важны
+        assert "Готово" in await say(100, "  иванов   ИВАН ")
+        async with S() as s:
+            st = (await s.execute(select(Student).where(
+                Student.code == "иванов иван"))).scalar_one()
+            assert (st.telegram_user_id, st.telegram_username) == (100, "@nick")
+        # привязанный аккаунт второе ФИО не занимает
+        assert "привязан к студенту Иванов Иван" in await say(100, "Петров Пётр")
+        # смена ника обновляется
+        await say(100, "/start", username="newnick")
+        async with S() as s:
+            st = (await s.execute(select(Student).where(
+                Student.telegram_user_id == 100))).scalar_one()
+            assert st.telegram_username == "@newnick"
+        await eng.dispose()
+
+    asyncio.run(run())
+
+
+def test_bot_bind_attempt_limit(monkeypatch):
+    import asyncio
+
+    from app import bot, telegram
+
+    async def member(uid):
+        return True
+
+    monkeypatch.setattr(telegram, "is_group_member", member)
+    bot._bind_hits.clear()
+    eng, S, init = _bot_db()
+
+    async def run():
+        await init()
+        async with S() as s:
+            for _ in range(bot._BIND_ATTEMPTS):
+                await bot.handle_message(s, user_id=1, username=None,
+                                         chat_type="private", text="Нет Такого")
+            r = await bot.handle_message(s, user_id=1, username=None,
+                                         chat_type="private", text="Иванов Иван")
+        assert "Слишком много" in r
+        await eng.dispose()
+
+    asyncio.run(run())
+    bot._bind_hits.clear()
+
+
+def test_admin_unbind(monkeypatch):
+    import asyncio
+
+    from app import admin
+
+    eng, S, init = _bot_db()
+    monkeypatch.setattr(admin, "SessionLocal", S)
+
+    async def run():
+        await init()
+        async with S() as s:
+            pid = (await s.execute(select(Student).where(
+                Student.telegram_user_id == 900))).scalar_one().id
+            s.add(AuthSession(token_hash="h", student_id=pid, expires_at=FAR_FUTURE))
+            await s.commit()
+        assert await admin.unbind("Петров Петр") == 0
+        assert await admin.unbind("Нет Такого") == 1
+        async with S() as s:
+            st = await s.get(Student, pid)
+            assert st.telegram_user_id is None and st.telegram_username is None
+            assert (await s.execute(select(AuthSession))).first() is None
+        await eng.dispose()
+
+    asyncio.run(run())
+
+
+def test_is_group_member_errors(monkeypatch):
+    """«user not found» — не участник; «chat not found» — ошибка конфигурации."""
+    import asyncio
+
+    from app import telegram
+
+    def fake(desc):
+        async def call(method, **kw):
+            raise telegram.TelegramError(desc)
+        return call
+
+    monkeypatch.setattr(telegram, "call", fake("Bad Request: user not found"))
+    assert asyncio.run(telegram.is_group_member(1)) is False
+    monkeypatch.setattr(telegram, "call", fake("Bad Request: chat not found"))
+    with pytest.raises(telegram.TelegramError):
+        asyncio.run(telegram.is_group_member(1))
+
+    async def left(method, **kw):
+        return {"status": "left"}
+
+    async def restricted(method, **kw):
+        return {"status": "restricted", "is_member": True}
+
+    monkeypatch.setattr(telegram, "call", left)
+    assert asyncio.run(telegram.is_group_member(1)) is False
+    monkeypatch.setattr(telegram, "call", restricted)
+    assert asyncio.run(telegram.is_group_member(1)) is True

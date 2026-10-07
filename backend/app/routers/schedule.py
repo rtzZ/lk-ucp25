@@ -1,4 +1,4 @@
-"""Расписание: группы и записи с фильтрами по дате и типу."""
+"""Расписание группы текущего студента с фильтрами по дате и типу."""
 
 import datetime as _dt
 
@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Group, ScheduleItem
-from ..schemas import ScheduleItemOut
+from ..schemas import ScheduleItemOut, StudentOut
 from ..tz import local_tz
+from .auth import current_student
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
@@ -95,23 +96,12 @@ async def _expire_past_items(session: AsyncSession,
     return r1 + r2
 
 
-@router.get("/groups", response_model=list[str])
-async def list_groups(session: AsyncSession = Depends(get_session)):
-    """Имена групп, у которых есть расписание."""
-    rows = (await session.execute(
-        select(Group.name).join(ScheduleItem,
-                                ScheduleItem.group_id == Group.id)
-        .distinct().order_by(Group.name)
-    )).all()
-    return [r[0] for r in rows]
-
-
 @router.get("", response_model=list[ScheduleItemOut])
-async def list_schedule(group: str = "УЦП-25",
-                        date_from: str = "", date_to: str = "",
+async def list_schedule(date_from: str = "", date_to: str = "",
                         kind: str = "",
+                        me: StudentOut = Depends(current_student),
                         session: AsyncSession = Depends(get_session)):
-    """Записи группы по датам (ISO). kind: lesson|attestation|event|deadline.
+    """Записи группы студента по датам (ISO). kind: lesson|attestation|event|deadline.
 
     Только чтение: статусы live/completed вычисляются на лету
     (`_display_status`), персистентный перевод делает фоновый джоб.
@@ -119,7 +109,7 @@ async def list_schedule(group: str = "УЦП-25",
     now = _now()
     stmt = (select(ScheduleItem, Group.name)
             .join(Group, ScheduleItem.group_id == Group.id)
-            .where(Group.name == group))
+            .where(Group.name == me.group))
     if date_from:
         stmt = stmt.where(ScheduleItem.date >= date_from)
     if date_to:

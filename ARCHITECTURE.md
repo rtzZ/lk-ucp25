@@ -14,7 +14,8 @@ parse_*_xlsx            — openpyxl, чистые функции (юнит-те
 upsert_*                — полная замена данных в PostgreSQL
         │
         ▼
-FastAPI (auth, students, schedule, grades) --JSON--> React (Atlassian DS)
+FastAPI (auth, schedule, grades) --JSON--> React (Atlassian DS)
+   ^ Telegram-бот (bot.py, long polling): привязка аккаунта, временные пароли
 ```
 
 При недоступности ссылок ошибка логируется (`sync_source` не пробрасывает
@@ -115,18 +116,27 @@ FastAPI (auth, students, schedule, grades) --JSON--> React (Atlassian DS)
   не сервера: в Docker часы в UTC.
 - Ссылки из ячеек чистятся `_clean_link` (только `http(s)`): `javascript:`-
   и прочие схемы отбрасываются, иначе href на фронте даст stored XSS.
-- Auth: пароля нет (идентификация), но перебор закрыт in-memory rate limiter'ом
-  (`ratelimit.py`: login 30/мин, запрос кода 5/мин, вход по коду 10/мин с IP —
-  сверх лимита 429; для мультиинстанса заменить на Redis). IP клиента —
-  из `X-Forwarded-For`: в образе `--proxy-headers` + `FORWARDED_ALLOW_IPS`
-  (приватные сети Docker), иначе за nginx у всех был бы IP шлюза и один
-  лимит на весь сайт. Точный логин идёт
-  индексным `WHERE code`, подсказки-однофамильцы — редкий полный скан
-  (SQLite `lower()` — только ASCII, для кириллицы не годится).
-  Telegram-коды: 6 цифр, TTL 60с по monotonic, сравнение `hmac.compare_digest`,
-  не больше 5 неверных вводов на код (дальше код сгорает),
-  истёкшие чистятся; секрет бота — только в env (`TELEGRAM_BOT_TOKEN`,
-  `TELEGRAM_GROUP_ID`), код уходит пользователю через `sendMessage` в ЛС бота.
+- Auth: ФИО + временный пароль от Telegram-бота -> Bearer-токен.
+  `bot.py` — long polling внутри backend (вебхук снимается при старте):
+  `/start` -> проверка членства в группе курса (`getChatMember`) -> ввод
+  «Фамилия Имя» -> привязка `telegram_user_id` к студенту (кто первый;
+  занятое ФИО перепривязывает только админ: `python -m app.admin unbind`;
+  10 попыток ввода ФИО в час на аккаунт). `routers/auth.py`: пароль 6 цифр,
+  TTL 5 мин, одноразовый, 5 неверных вводов — сгорает, повтор отправки
+  не чаще 30 с; ответ на запрос пароля одинаков для любых ФИО. Членство
+  в группе проверяется и при каждом запросе пароля (ушедшие теряют доступ).
+  Сессии — таблица `auth_sessions` (sha256 токена, `expires_at`,
+  `SESSION_TTL_DAYS`), истёкшие чистит `_expire_job`; синк при удалении
+  студента удаляет и его сессии. Все эндпоинты данных — через зависимость
+  `current_student`: оценки только свои, расписание — группы студента.
+  Пароли и попытки — in-memory (один инстанс; для нескольких — Redis).
+  `telegram.py` не пропускает текст ошибок httpx наружу: в URL Bot API токен.
+  `AUTH_DEV_MODE=1` (игнорируется при заданном токене бота) — пароль
+  в ответе API, лимиты выключены: разработка и E2E.
+- Rate limit (`ratelimit.py`, in-memory, с IP): запрос пароля 5/мин,
+  вход 10/мин — сверх лимита 429. IP клиента — из `X-Forwarded-For`:
+  в образе `--proxy-headers` + `FORWARDED_ALLOW_IPS` (приватные сети
+  Docker), иначе за nginx у всех был бы IP шлюза и один лимит на весь сайт.
 - Время в расписании каноническое `HH:MM` (`parse_time_range` добивает нуль —
   иначе строковые сравнения expiry/live врут на утренних парах); фронт
   в `isUpcoming` паддит защитно (старые строки в БД).
