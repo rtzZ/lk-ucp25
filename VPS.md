@@ -2,7 +2,7 @@
 
 ## Требования
 
-- Ubuntu 22.04+
+- Ubuntu 22.04+, от 2 ГБ RAM (синхронизация запускает headless Chromium)
 - Docker + Docker Compose plugin (`docker compose`)
 - Node.js 24 (только для сборки фронтенда)
 - Домен, направленный на сервер (для HTTPS)
@@ -47,12 +47,12 @@ nano .env
 
 | Переменная | Значение |
 |---|---|
-| `POSTGRES_PASSWORD` | длинный случайный пароль |
-| `DATABASE_URL` | можно не задавать — compose соберёт из `POSTGRES_*` (`...@db:5432/...`) |
+| `POSTGRES_PASSWORD` | длинный случайный пароль (`openssl rand -hex 24`) |
+| `DATABASE_URL` | **не задавать** (в примере закомментирована): compose соберёт адрес Postgres из `POSTGRES_*`. Заданное значение его перебьёт — например, SQLite из примера для локальной разработки: в образе нет `aiosqlite`, backend не стартует |
 | `YANDEX_SCHEDULE_URL` | edit-ссылка таблицы расписания |
 | `YANDEX_GRADES_URL` | edit-ссылка таблицы успеваемости |
 | `FRONTEND_URL` | `https://your-domain.com` (CORS-origin) |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_GROUP_ID` | **обязательно**: вход только через бота (токен — только сюда, никогда в код). Бота добавить в группу курса |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_GROUP_ID` | **обязательно**: вход только через бота (токен — только сюда, никогда в код). `TELEGRAM_GROUP_ID` — группа **курса** (вида `-100…` или `-…`), бот должен быть её участником |
 
 **НЕ ставить в проде:** `SEED_DEMO=1` (зальёт демо-студентов Иванова/Петрову
 в боевую базу). Chromium для синхронизации уже внутри образа backend
@@ -86,19 +86,27 @@ docker compose ps
 docker compose logs -f app  # логи backend (JSON в stderr)
 
 curl http://localhost:8001/health  # {"status":"ok"}
+docker compose logs app | grep -E "бот|Планировщик"  # «Telegram-бот @… запущен»
+
+# Первая загрузка данных — сразу, не дожидаясь 09:30/11:00:
+docker compose exec app python -m app.admin sync
 ```
 
-Проверка чтения из БД (первые студенты появятся после первой синхронизации
-или сида — см. раздел 6).
+До первой синхронизации студентов в базе нет — войти никто не сможет.
 
 ---
 
 ## 4. Сборка и запуск фронтенда
 
 ```bash
-cd frontend
-npm install
+cd ~/lk/frontend
+npm ci
 VITE_API_URL=/api npm run build  # относительный путь — API идёт через nginx
+
+# nginx (www-data) не читает домашние каталоги (на Ubuntu 22.04+ у них
+# права 750 → 403 Forbidden), поэтому статику кладём в /var/www:
+sudo mkdir -p /var/www/lk
+sudo rsync -a --delete dist/ /var/www/lk/
 ```
 
 **Важно:** НЕ `VITE_API_URL=http://localhost:8001` — это адрес внутри сервера,
@@ -115,7 +123,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        root /home/ubuntu/lk/frontend/dist;
+        root /var/www/lk;
         try_files $uri $uri/ /index.html;
     }
 
@@ -160,8 +168,8 @@ cd ~/lk
 git pull
 docker compose up -d --build  # пересобрать backend при изменениях
 docker compose logs -f app
-cd frontend && npm install && VITE_API_URL=/api npm run build
-sudo systemctl reload nginx
+cd frontend && npm ci && VITE_API_URL=/api npm run build
+sudo rsync -a --delete dist/ /var/www/lk/
 ```
 
 ---
