@@ -3,7 +3,8 @@
  *  переключаются @atlaskit/tokens (data-color-mode на <html>). */
 
 :root {
-  --page-max: 720px;
+  /* Единая ширина всех экранов (вход, кабинет); на телефоне — весь экран. */
+  --page-max: 960px;
   --gap: 12px;
 }
 
@@ -173,6 +174,11 @@ body {
   cursor: pointer;
 }
 
+.chip:focus-visible {
+  outline: 2px solid var(--ds-border-focused);
+  outline-offset: 2px;
+}
+
 .chip {
   border: 1px solid var(--ds-border);
   background: var(--ds-surface-raised);
@@ -189,18 +195,26 @@ body {
   color: var(--ds-text-inverse);
 }
 
-.add-calendar {
+/* «Добавить в календарь» — справа в строке фильтров, стандартная кнопка. */
+.filters-end {
   margin-left: auto;
-  background: #ffc400;
-  border-color: #e2ab0f;
-  color: #1a1a1a;
-  font-weight: 700;
 }
 
 .day h3 {
   margin: 16px 4px 8px;
   font-size: 15px;
-  text-transform: capitalize;
+}
+
+/* Полоса семестра — только при его смене, выровнена по заголовкам дней. */
+.semester-divider {
+  margin: 20px 4px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ds-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .lesson {
@@ -213,15 +227,25 @@ body {
   cursor: pointer;
 }
 
+/* Отменённая/прошедшая пара: приглушаются рамка и название токеном
+   text-subtle (контраст >= 4.5:1), а не opacity всей карточки. */
 .lesson.cancelled {
   border-left-color: var(--ds-icon-danger);
-  opacity: 0.75;
 }
 
-/* Прошедшая пара: нейтральный цвет рамки, немного приглушена. */
+.lesson.cancelled .subject {
+  color: var(--ds-text-subtle);
+  text-decoration: line-through;
+}
+
 .lesson.completed {
-  border-left-color: var(--ds-icon-subtle);
-  opacity: 0.6;
+  border-left-color: var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: none;
+}
+
+.lesson.completed .subject {
+  color: var(--ds-text-subtle);
 }
 
 /* Идущая сейчас пара: рамка и лёгкая подложка опасного (live) токена. */
@@ -268,13 +292,6 @@ body {
   .page {
     padding: 24px 24px 64px;
   }
-
-  /* Десктоп: drawer шириной 1/3 экрана.
-     Хэш класса из @atlaskit/drawer@14.3.0 (narrow=360px); при обновлении
-     библиотеки сверить значение в drawer-panel.compiled.css. */
-  ._1bsb1gwv {
-    width: 33.333vw !important;
-  }
 }
 
 /* Единая шапка таблицы оценок: триггер popup-фильтра + стрелка сортировки. */
@@ -305,16 +322,22 @@ body {
 }
 
 .sort-btn {
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: 0;
-  padding: 4px 6px;
-  font-size: 12px;
-  color: var(--ds-text-subtle);
+  border-radius: 4px;
+  padding: 4px;
+  color: var(--ds-icon-subtlest);
   cursor: pointer;
 }
 
+.sort-btn:hover {
+  background: var(--ds-background-neutral-subtle-hovered);
+}
+
 .sort-btn.active {
-  color: var(--ds-text-brand);
+  color: var(--ds-icon-brand);
 }
 
 /* Кликабельный предмет в таблице оценок. */
@@ -370,14 +393,16 @@ body {
   gap: 8px;
 }
 
+/* Карточка оценки: предмет и детали слева, оценка справа. */
 .grade-card {
   background: var(--ds-surface-raised);
   border-radius: 8px;
   padding: 12px 16px;
   box-shadow: 0 1px 2px rgba(9, 30, 66, 0.15);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -385,14 +410,198 @@ body {
   overflow-wrap: anywhere;
 }
 
-.grade-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
+
 .login-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Детали в drawer пары: подпись + значение обычным текстом. */
+.detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text-subtle);
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: var(--ds-text);
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.description-about {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.description-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+/* Оценка: главное в строке — крупно и цветом токена. */
+.grade-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.grade-number {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.grade-word {
+  font-size: 14px;
+}
+
+.grade-verbal {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-subtle);
+}
+
+.grade-success {
+  color: var(--ds-text-success);
+}
+
+.grade-inprogress {
+  color: var(--ds-text-information);
+}
+
+.grade-removed {
+  color: var(--ds-text-danger);
+}
+
+.grade-default {
+  color: var(--ds-text);
+}
+
+.grade-none {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text-subtlest);
+}
+
+.grade-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Сводка оценок: средний балл крупно, пояснение справа. */
+.summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.summary-note {
+  text-align: right;
+}
+
+/* Экран входа: заголовок и кнопка темы в одной строке карточки. */
+.login-top .meta {
+  margin-top: -4px;
+}
+
+/* Панель подробностей (components/Sheet.tsx, нативный <dialog>).
+   Телефон — шторка снизу, десктоп — панель справа. */
+.sheet {
+  border: 0;
+  padding: 0;
+  margin: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 88vh;
+  border-radius: 16px 16px 0 0;
+  background: var(--ds-surface-overlay);
+  color: var(--ds-text);
+  box-shadow: var(--ds-shadow-overlay);
+  animation: sheet-up 0.2s ease-out;
+}
+
+.sheet::backdrop {
+  background: var(--ds-blanket);
+}
+
+.sheet-body {
+  position: relative;
+  padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  max-height: 88vh;
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 0 auto 12px;
+  background: var(--ds-border);
+}
+
+.sheet-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* Заголовок не заезжает под крестик. */
+.sheet-body h2 {
+  padding-right: 32px;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 720px) {
+  .sheet {
+    margin: 0 0 0 auto;
+    width: min(420px, 100vw);
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    animation-name: sheet-left;
+  }
+
+  .sheet-body {
+    max-height: 100vh;
+    padding: 24px 24px 32px;
+  }
+
+  .sheet-handle {
+    display: none;
+  }
+}
+
+@keyframes sheet-left {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
 }

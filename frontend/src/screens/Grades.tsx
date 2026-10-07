@@ -3,10 +3,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Button from "@atlaskit/button/new";
-import { Drawer, DrawerCloseButton, DrawerContent } from "@atlaskit/drawer";
 import { DynamicTableStateless } from "@atlaskit/dynamic-table";
 import Heading from "@atlaskit/heading";
 import ChevronDownIcon from "@atlaskit/icon/core/chevron-down";
+import SortAscendingIcon from "@atlaskit/icon/core/sort-ascending";
+import SortDescendingIcon from "@atlaskit/icon/core/sort-descending";
 import Lozenge from "@atlaskit/lozenge";
 import { CheckboxOption } from "@atlaskit/select/checkbox-option";
 import { PopupSelect } from "@atlaskit/select/popup-select";
@@ -14,7 +15,8 @@ import { Inline, Stack } from "@atlaskit/primitives/compiled";
 import { SimpleTag } from "@atlaskit/tag";
 import { api, type Grade, type Student } from "../api";
 import { semesterNumber, semesterNumeral } from "../semesters";
-import DescriptionTextArea from "../components/SubjectDescription";
+import Sheet from "../components/Sheet";
+import SubjectDescriptionView from "../components/SubjectDescription";
 
 type SortKey = "subject" | "semester" | "value" | "ects";
 type SortOrder = "ASC" | "DESC";
@@ -27,12 +29,37 @@ function gradeAppearance(value: string): "success" | "inprogress" | "removed" | 
   return "default";
 }
 
-/** Подпись оценки: «5 · Отлично»; пустая — оценки ещё нет (не «2»). */
-function gradeLabel(g: Grade): string {
-  if (!g.value.trim()) return "Нет оценки";
-  return g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase()
-    ? `${g.value} · ${g.verbal}`
-    : g.value;
+/** Словесная оценка, если она добавляет смысл («Отлично» к «5»). */
+function verbalOf(g: Grade): string {
+  return g.verbal && g.verbal.toLowerCase() !== g.value.toLowerCase() ? g.verbal : "";
+}
+
+/** Оценка — главное в строке: крупно и цветом, а не мелким бейджем.
+ *  Пустая — оценки ещё нет (не «2»). */
+function GradeValue({ g, withVerbal = false }: { g: Grade; withVerbal?: boolean }) {
+  const value = g.value.trim();
+  if (!value) return <span className="grade-value grade-none">Нет оценки</span>;
+  const numeric = /^\d+([.,]\d+)?$/.test(value);
+  const verbal = withVerbal ? verbalOf(g) : "";
+  return (
+    <span className={`grade-value grade-${gradeAppearance(value)}`}>
+      <span className={numeric ? "grade-number" : "grade-word"}>
+        {/* В ведомости вперемешку «зачтено»/«Зачтено» — выравниваем. */}
+        {numeric ? value : value.charAt(0).toUpperCase() + value.slice(1)}
+      </span>
+      {verbal && <span className="grade-verbal">{verbal}</span>}
+    </span>
+  );
+}
+
+/** Вторая строка карточки: семестр · словесная · ECTS · баллы. */
+function gradeMeta(g: Grade): string {
+  const parts = [`${semesterNumeral(g.semester)} семестр`];
+  const verbal = verbalOf(g);
+  if (verbal && g.value.trim()) parts.push(verbal);
+  if (!isPassFail(g) && g.ects.trim()) parts.push(`ECTS ${g.ects.trim()}`);
+  if (g.score !== null) parts.push(`баллы: ${g.score}`);
+  return parts.join(" · ");
 }
 
 const TITLES: Record<SortKey, string> = {
@@ -77,6 +104,14 @@ function ectsCell(g: Grade): ReactNode {
 }
 
 const CLEAR_ALL = "__clear__";
+
+/** 1 оценке, 2 оценкам, 5 оценкам (дательный падеж). */
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
 
 const NARROW_QUERY = "(max-width: 560px)";
 
@@ -168,6 +203,7 @@ export default function Grades({ student }: { student: Student }) {
     ? (numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(2)
     : "—";
 
+  const pending = grades.filter((g) => !g.value.trim()).length;
   const hasFilter = Object.values(filters).some((v) => v.length > 0);
   const narrow = useNarrow();
   const emptyText = hasFilter ? "Нет оценок по фильтру." : "Оценок пока нет.";
@@ -189,9 +225,6 @@ export default function Grades({ student }: { student: Student }) {
     </span>
   );
 
-  const gradeLozenge = (g: Grade) => (
-    <Lozenge appearance={gradeAppearance(g.value)}>{gradeLabel(g)}</Lozenge>
-  );
 
   const headCell = (key: SortKey) => (
     <span className="head-merged">
@@ -230,18 +263,34 @@ export default function Grades({ student }: { student: Student }) {
         type="button"
         className={sortKey === key ? "sort-btn active" : "sort-btn"}
         aria-label={`Сортировка: ${TITLES[key]}`}
+        title={
+          sortKey !== key
+            ? "Сортировать"
+            : sortOrder === "ASC" ? "По возрастанию" : "По убыванию"
+        }
         onClick={() => cycleSort(key)}
       >
-        {sortKey === key ? (sortOrder === "ASC" ? "▲" : "▼") : "△"}
+        {sortKey === key && sortOrder === "DESC" ? (
+          <SortDescendingIcon label="" size="small" />
+        ) : (
+          <SortAscendingIcon label="" size="small" />
+        )}
       </button>
     </span>
   );
 
   return (
     <div>
+      {/* Имя уже в шапке — здесь только итог. */}
       <div className="summary">
-        <span>{student.full_name || `${student.last_name} ${student.first_name}`}</span>
-        <Lozenge appearance="success" isBold>Средний балл: {avg}</Lozenge>
+        <div>
+          <div className="detail-label">Средний балл</div>
+          <div className="summary-value">{avg}</div>
+        </div>
+        <div className="meta summary-note">
+          по {numeric.length} {plural(numeric.length, "оценке", "оценкам", "оценкам")} с цифрой
+          {pending > 0 && <> · без оценки: {pending}</>}
+        </div>
       </div>
       {loadError && <p className="error">{loadError}</p>}
       {narrow ? (
@@ -260,12 +309,11 @@ export default function Grades({ student }: { student: Student }) {
             <ul className="grade-cards" aria-label="Оценки">
               {visible.map((g) => (
                 <li key={g.id} className="grade-card">
-                  {subjectLink(g)}
-                  <div className="grade-card-meta">
-                    <SimpleTag text={`${semesterNumeral(g.semester)} семестр`} />
-                    {gradeLozenge(g)}
-                    {ectsCell(g)}
+                  <div className="grade-card-main">
+                    {subjectLink(g)}
+                    <div className="meta">{gradeMeta(g)}</div>
                   </div>
+                  <GradeValue g={g} />
                 </li>
               ))}
             </ul>
@@ -279,7 +327,7 @@ export default function Grades({ student }: { student: Student }) {
             cells: [
               { key: g.subject, content: subjectLink(g) },
               { key: g.semester, content: semesterNumeral(g.semester) },
-              { key: `${g.value}|${g.id}`, content: gradeLozenge(g) },
+              { key: `${g.value}|${g.id}`, content: <GradeValue g={g} withVerbal /> },
               { key: g.ects, content: ectsCell(g) },
             ],
           }))}
@@ -291,14 +339,10 @@ export default function Grades({ student }: { student: Student }) {
         />
       )}
       {selectedSubject && (
-        <Drawer
-          isOpen
+        <Sheet
           onClose={() => setSelectedSubject(null)}
           label={`Предмет: ${selectedSubject}`}
-          width="narrow"
         >
-          <DrawerCloseButton />
-          <DrawerContent>
             <Stack space="space.200">
               <Heading size="medium" as="h2">
                 {selectedSubject}
@@ -308,19 +352,18 @@ export default function Grades({ student }: { student: Student }) {
                   .filter((g) => g.subject === selectedSubject)
                   .map((g) => (
                     <Inline key={g.id} space="space.100" alignBlock="center">
-                      <SimpleTag text={semesterNumeral(g.semester)} />
-                      {gradeLozenge(g)}
+                      <SimpleTag text={`${semesterNumeral(g.semester)} семестр`} />
+                      <GradeValue g={g} withVerbal />
                     </Inline>
                   ))}
               </Stack>
-              <DescriptionTextArea
+              <SubjectDescriptionView
                 description={
                   grades.find((g) => g.subject === selectedSubject)?.description
                 }
               />
             </Stack>
-          </DrawerContent>
-        </Drawer>
+        </Sheet>
       )}
     </div>
   );

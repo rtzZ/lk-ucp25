@@ -116,8 +116,7 @@ export default function App() {
   if (!student) {
     return (
       <main className="page">
-        <div className="theme-toggle-row">{themeButton}</div>
-        <Login onLogin={login} />
+        <Login onLogin={login} headerAction={themeButton} />
       </main>
     );
   }

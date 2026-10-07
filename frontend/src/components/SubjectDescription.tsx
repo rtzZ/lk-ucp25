@@ -1,14 +1,9 @@
-/** Описание предмета из Figma-макета в textarea-компоненте ADS
- *  (`@atlaskit/textarea`, readonly): заголовки-подсписки «Чему вы научитесь» /
- *  «Содержание …» схлопываются в единый текст с маркерами «•».
- *  Высота textarea ставится по `scrollHeight` (ResizeObserver + шрифты),
- *  `overflow: hidden` — скроллбара нет ни в одном браузере.
- *  Пустое описание — текст-заглушка вместо textarea. */
+/** Описание предмета из Figma-макета: абзац + списки «Чему вы научитесь» /
+ *  «Содержание …». Обычный текст, а не disabled-textarea: та рисовала
+ *  описание серым и выглядела как недоступное поле.
+ *  Пустое описание — текст-заглушка. */
 
-import { Label } from "@atlaskit/form";
 import { Stack, Text } from "@atlaskit/primitives/compiled";
-import TextArea from "@atlaskit/textarea";
-import { useLayoutEffect, useRef } from "react";
 import type { SubjectDescription } from "../api";
 
 export function hasDescription(d: SubjectDescription | null | undefined): boolean {
@@ -17,42 +12,25 @@ export function hasDescription(d: SubjectDescription | null | undefined): boolea
   );
 }
 
-/** Схлопывает описание в plain-текст для textarea. */
-function descriptionValue(d: SubjectDescription): string {
-  const parts: string[] = [];
-  if (d.about) parts.push(d.about);
-  if (d.skills_title && d.skills.length > 0) {
-    parts.push(`${d.skills_title}:\n${d.skills.map((s) => `• ${s}`).join("\n")}`);
-  }
-  if (d.content_title && d.content.length > 0) {
-    parts.push(
-      `${d.content_title}:\n${d.content.map((s) => `• ${s}`).join("\n")}`
-    );
-  }
-  return parts.join("\n\n");
+function Section({ title, items }: { title: string | null; items: string[] }) {
+  if (!title || items.length === 0) return null;
+  return (
+    <div>
+      <div className="detail-label">{title.replace(/:\s*$/, "")}</div>
+      <ul className="description-list">
+        {items.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
-export default function DescriptionTextArea({
+export default function SubjectDescriptionView({
   description,
 }: {
   description: SubjectDescription | null | undefined;
 }) {
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = taRef.current;
-    if (!el) return;
-    const fit = () => {
-      el.style.height = "auto";
-      el.style.minHeight = `${el.scrollHeight}px`;
-    };
-    fit();
-    document.fonts?.ready.then(fit).catch(() => undefined);
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [description]);
-
   if (!hasDescription(description)) {
     return (
       <Stack space="space.100">
@@ -64,20 +42,13 @@ export default function DescriptionTextArea({
       </Stack>
     );
   }
+  const d = description!;
   return (
-    <Stack space="space.050">
-      <Label htmlFor="lesson-description">Описание дисциплины</Label>
-      <TextArea
-        ref={taRef}
-        id="lesson-description"
-        value={descriptionValue(description!)}
-        isDisabled
-        resize="none"
-        minimumRows={4}
-        maxHeight="none"
-        appearance="subtle"
-        style={{ overflow: "hidden" }}
-      />
-    </Stack>
+    <section className="description" aria-label="Описание дисциплины">
+      <div className="detail-label">Описание дисциплины</div>
+      {d.about && <p className="description-about">{d.about}</p>}
+      <Section title={d.skills_title} items={d.skills ?? []} />
+      <Section title={d.content_title} items={d.content ?? []} />
+    </section>
   );
 }

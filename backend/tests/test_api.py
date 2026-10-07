@@ -701,7 +701,8 @@ def test_password_via_telegram(client, auth_env, monkeypatch):
     async def fake_member(uid):
         return member["ok"]
 
-    async def fake_send(chat_id, text):
+    async def fake_send(chat_id, text, *, html=False):
+        assert html  # <code> копируется по нажатию только с parse_mode=HTML
         sent.append((chat_id, text))
 
     monkeypatch.setattr(telegram, "is_group_member", fake_member)
@@ -712,7 +713,8 @@ def test_password_via_telegram(client, auth_env, monkeypatch):
         r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
         assert r.json() == {"sent": True, "dev_password": None}
         assert len(sent) == 1 and sent[0][0] == 555
-        password = re.search(r"\b(\d{6})\b", sent[0][1]).group(1)
+        password = re.search(r"<code>(\d{6})</code>", sent[0][1]).group(1)
+        assert "\n" in sent[0][1] and "1 минуту" in sent[0][1]
 
         # повтор в пределах cooldown — без второго сообщения
         client.post("/auth/request_password", json=body, headers=NO_AUTH)
@@ -746,7 +748,7 @@ def test_request_password_does_not_leak(client, auth_env, monkeypatch):
     async def not_member(uid):
         return False
 
-    async def fake_send(chat_id, text):
+    async def fake_send(chat_id, text, *, html=False):
         sent.append(chat_id)
 
     monkeypatch.setattr(telegram, "is_group_member", not_member)
@@ -784,7 +786,8 @@ def test_dev_mode_flow_and_attempt_limit(client, auth_env, monkeypatch):
     """AUTH_DEV_MODE: пароль в ответе; 5 неверных вводов сжигают пароль."""
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN")
     monkeypatch.setenv("AUTH_DEV_MODE", "1")
-    assert client.get("/auth/config", headers=NO_AUTH).json()["dev_mode"] is True
+    cfg = client.get("/auth/config", headers=NO_AUTH).json()
+    assert cfg["dev_mode"] is True and cfg["group"] == "УЦП-25"
     body = {"last_name": "Петров", "first_name": "Петр"}
     r = client.post("/auth/request_password", json=body, headers=NO_AUTH)
     password = r.json()["dev_password"]
@@ -1084,3 +1087,36 @@ def test_empty_grade_in_api(client):
         assert (g["value"], g["ects"], g["score"]) == ("", "", None)
     finally:
         asyncio.run(run(False))
+
+
+def test_password_expires_after_one_minute(client, auth_env, monkeypatch):
+    """Пароль живёт 60 с: на 59-й секунде пускает, на 61-й — нет."""
+    import time
+
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN")
+    monkeypatch.setenv("AUTH_DEV_MODE", "1")
+    assert auth_env._PASSWORD_TTL_S == 60
+    body = {"last_name": "Петров", "first_name": "Петр"}
+    base = time.monotonic()
+    clock = {"t": base}
+    monkeypatch.setattr(auth_env.time, "monotonic", lambda: clock["t"])
+
+    pw = client.post("/auth/request_password", json=body, headers=NO_AUTH).json()["dev_password"]
+    clock["t"] = base + 59
+    assert client.post("/auth/login", headers=NO_AUTH,
+                       json={**body, "password": pw}).status_code == 200
+
+    pw = client.post("/auth/request_password", json=body, headers=NO_AUTH).json()["dev_password"]
+    clock["t"] = base + 59 + 61
+    assert client.post("/auth/login", headers=NO_AUTH,
+                       json={**body, "password": pw}).status_code == 400
+
+
+def test_password_message_format():
+    """Сообщение: переносы строк, пароль в <code> (копируется по нажатию)."""
+    from app.routers.auth import password_message
+
+    text = password_message("012345")
+    assert "<code>012345</code>" in text
+    assert text.count("\n") >= 3 and "1 минуту" in text
+    assert "скопировать" not in text

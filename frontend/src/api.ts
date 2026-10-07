@@ -143,6 +143,7 @@ export interface AuthConfig {
   telegram: boolean;
   bot_username: string;
   dev_mode: boolean;
+  group: string;
 }
 
 export interface RequestPasswordResult {

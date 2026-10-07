@@ -1,17 +1,20 @@
 /** Экран входа: ФИО -> временный пароль от Telegram-бота -> вход. */
 
-import { useEffect, useState } from "react";
-import Button from "@atlaskit/button/new";
+import { useEffect, useState, type ReactNode } from "react";
+import Button, { LinkButton } from "@atlaskit/button/new";
+import SendIcon from "@atlaskit/icon/core/send";
 import Textfield from "@atlaskit/textfield";
 import { api, type AuthConfig, type Student } from "../api";
 
 interface Props {
   onLogin: (s: Student) => void;
+  /** Кнопка темы — в шапке карточки, а не отдельно над ней. */
+  headerAction?: ReactNode;
 }
 
 const NO_CONNECTION = "Нет связи с сервером. Проверьте соединение.";
 
-export default function Login({ onLogin }: Props) {
+export default function Login({ onLogin, headerAction }: Props) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -74,7 +77,13 @@ export default function Login({ onLogin }: Props) {
       }}
     >
       <div className="login-top">
-        <h1>Кабинет студента</h1>
+        <div>
+          <h1>Кабинет студента</h1>
+          <div className="meta">
+            {config?.group ? `Группа ${config.group} · ` : ""}расписание и оценки
+          </div>
+        </div>
+        {headerAction}
       </div>
       <label htmlFor="last-name">Фамилия</label>
       <Textfield
@@ -82,7 +91,8 @@ export default function Login({ onLogin }: Props) {
         value={lastName}
         isDisabled={step === "password"}
         onChange={(e) => setLastName((e.target as HTMLInputElement).value)}
-        placeholder="Иванов"
+        placeholder="Как в ведомости"
+        autoComplete="family-name"
       />
       <label htmlFor="first-name">Имя</label>
       <Textfield
@@ -90,7 +100,8 @@ export default function Login({ onLogin }: Props) {
         value={firstName}
         isDisabled={step === "password"}
         onChange={(e) => setFirstName((e.target as HTMLInputElement).value)}
-        placeholder="Иван"
+        placeholder="Без отчества"
+        autoComplete="given-name"
       />
 
       {step === "name" ? (
@@ -101,16 +112,27 @@ export default function Login({ onLogin }: Props) {
             </Button>
           </div>
           <p className="meta">
-            Пароль придёт от {botLink ? <a href={botLink} target="_blank" rel="noreferrer">{botName}</a> : botName} в
-            Telegram. Первый раз? Напишите боту /start и укажите фамилию и имя.
+            Пароль придёт от {botName} в Telegram. Первый раз? Напишите боту
+            /start и укажите фамилию и имя.
           </p>
+          {botLink && (
+            <LinkButton
+              href={botLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              iconBefore={SendIcon}
+              shouldFitContainer
+            >
+              Открыть {botName}
+            </LinkButton>
+          )}
         </>
       ) : (
         <>
           <p className="meta">
             Если ваш Telegram привязан, пароль уже отправлен от{" "}
             {botLink ? <a href={botLink} target="_blank" rel="noreferrer">{botName}</a> : botName}.
-            Не пришёл — напишите боту /start.
+            Пароль действует 1 минуту. Не пришёл — напишите боту /start.
           </p>
           {devPassword && (
             <p className="meta">Режим разработки: пароль {devPassword}</p>
@@ -123,7 +145,7 @@ export default function Login({ onLogin }: Props) {
             autoComplete="one-time-code"
             inputMode="numeric"
             onChange={(e) => setPassword((e.target as HTMLInputElement).value)}
-            placeholder="123456"
+            placeholder="6 цифр"
           />
           <div className="actions login-buttons">
             <Button appearance="primary" type="submit" isDisabled={!password.trim() || busy}>

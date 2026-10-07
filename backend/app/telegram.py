@@ -71,6 +71,13 @@ async def is_group_member(user_id: int) -> bool:
     return status in ("member", "administrator", "creator")
 
 
-async def send_message(chat_id: int, text: str) -> None:
-    """Личное сообщение (бот может писать только тем, кто нажал /start)."""
-    await call("sendMessage", chat_id=chat_id, text=text)
+async def send_message(chat_id: int, text: str, *, html: bool = False) -> None:
+    """Личное сообщение (бот может писать только тем, кто нажал /start).
+
+    html=True — разметка parse_mode=HTML (напр. <code> копируется по тапу);
+    пользовательские данные в такой текст подставлять только экранированными.
+    """
+    params: dict = {"chat_id": chat_id, "text": text}
+    if html:
+        params["parse_mode"] = "HTML"
+    await call("sendMessage", **params)

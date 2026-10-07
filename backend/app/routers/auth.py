@@ -36,7 +36,7 @@ from ..schemas import (
     StudentOut,
     TokenOut,
 )
-from ..sync import norm_name
+from ..sync import DEFAULT_GROUP, norm_name
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -44,7 +44,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Временные пароли: student_id -> [пароль, expires, неверных попыток, sent_at].
 # Процесс локальный — при рестарте пароли сгорают, для мультиинстанса нужен Redis.
 _passwords: dict[int, list] = {}
-_PASSWORD_TTL_S = 300
+_PASSWORD_TTL_S = 60  # см. текст password_message («1 минуту»)
 _PASSWORD_MAX_ATTEMPTS = 5  # дальше пароль сгорает, нужен новый
 _RESEND_COOLDOWN_S = 30  # не спамить студенту в Telegram
 
@@ -107,6 +107,21 @@ def _purge_passwords(now: float) -> None:
         del _passwords[key]
 
 
+def password_message(password: str) -> str:
+    """Текст письма с паролем (HTML): <code> в Telegram копируется по нажатию.
+
+    В тексте только цифры пароля и константы — экранировать нечего.
+    """
+    return (
+        "Пароль для входа в кабинет студента:\n"
+        "\n"
+        f"<code>{password}</code>\n"
+        "\n"
+        "Действует 1 минуту.\n"
+        "Никому его не сообщайте."
+    )
+
+
 def _new_password(student_id: int) -> str:
     now = time.monotonic()
     _purge_passwords(now)
@@ -120,7 +135,7 @@ async def auth_config():
     """Что показать на экране входа: ссылку на бота, dev-режим."""
     return AuthConfigOut(telegram=telegram.configured(),
                          bot_username=bot.bot_username(),
-                         dev_mode=dev_mode())
+                         dev_mode=dev_mode(), group=DEFAULT_GROUP)
 
 
 @router.post("/request_password", response_model=RequestPasswordOut)
@@ -150,11 +165,8 @@ async def request_password(body: LoginIn,
             logger.info(f"Пароль не выдан: {student.code!r} не в группе курса")
             return RequestPasswordOut(sent=GENERIC_SENT)
         password = _new_password(student.id)
-        await telegram.send_message(
-            student.telegram_user_id,
-            f"Пароль для входа в кабинет студента: {password}\n"
-            f"Действует {_PASSWORD_TTL_S // 60} минут. "
-            "Никому его не сообщайте.")
+        await telegram.send_message(student.telegram_user_id,
+                                    password_message(password), html=True)
     except telegram.TelegramError as e:
         _passwords.pop(student.id, None)
         logger.error(f"Не удалось отправить пароль {student.code!r}: {e}")

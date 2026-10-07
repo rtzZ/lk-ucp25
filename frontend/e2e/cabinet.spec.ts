@@ -32,6 +32,7 @@ async function login(page: import("@playwright/test").Page) {
 async function showAll(page: import("@playwright/test").Page) {
   // Тогл по умолчанию «Актуальное», сид-даты в прошлом — показываем всё.
   await page.locator(".toggle-row").click({ force: true });
+  await expect(page.locator(".toggle-row")).toContainText("Всё расписание");
 }
 
 test("вход и просмотр расписания", async ({ page }) => {
@@ -40,15 +41,18 @@ test("вход и просмотр расписания", async ({ page }) => {
   await expect(page.getByText("Нет записей.")).toBeVisible();
   await showAll(page);
   await expect(
-    page.getByRole("heading", { name: /понедельник, 9 февраля/ })
+    page.getByRole("heading", { name: /^Понедельник, 9 февраля/ })
   ).toBeVisible();
+  // полоса семестра — один раз на семестр, а не под каждым днём
+  await expect(page.locator(".semester-divider")).toHaveCount(1);
+  await expect(page.locator(".semester-divider")).toHaveText(/II семестр/);
   await expect(page.getByText("Математика").first()).toBeVisible();
 });
 
 test("вкладка оценок", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Оценки" }).click();
-  await expect(page.getByText("Средний балл: 5.00")).toBeVisible();
+  await expect(page.locator(".summary-value")).toHaveText("5.00");
   await expect(
     page.getByRole("cell", { name: "Математика" })
   ).toBeVisible();
@@ -86,6 +90,13 @@ test("drawer занятия со ссылкой на подключение", as
   await showAll(page);
   await page.getByRole("button", { name: /Математика/ }).first().click();
   await expect(page.getByRole("dialog")).toContainText("Сидоров");
+  // десктоп: панель справа
+  const box = await page.getByRole("dialog").boundingBox();
+  expect(box!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
+  // дата и время — обычным текстом, не disabled-полями формы
+  await expect(page.getByRole("dialog")).toContainText("Понедельник, 9 февраля");
+  await expect(page.getByRole("dialog")).toContainText("19:00–20:20");
+  await expect(page.getByRole("dialog").getByRole("textbox")).toHaveCount(0);
   // действия — секция из двух пунктов: ссылка и календарь
   await expect(
     page.getByRole("dialog").getByRole("link", { name: "Подключиться к паре" })
@@ -108,13 +119,13 @@ test("drawer занятия со ссылкой на подключение", as
 test("drawer предмета в таблице оценок", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Оценки" }).click();
-  await page.getByRole("cell", { name: "Математика" }).first().click();
+  await page.getByRole("button", { name: "Математика" }).first().click();
   await expect(page.getByRole("dialog")).toContainText("Математика");
   // Математики нет в Figma-макете — показывается заглушка
   await expect(page.getByRole("dialog")).toContainText(
     "Информация о предмете недоступна."
   );
-  await page.getByRole("dialog").getByRole("button", { name: "Close drawer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Закрыть" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -142,7 +153,7 @@ test("сессия переживает перезагрузку, выход е�
 });
 
 test("без токена данные не отдаются", async ({ request }) => {
-  const api = "http://localhost:8001";
+  const api = process.env.E2E_API ?? "http://localhost:8001";
   for (const path of ["/grades", "/schedule", "/auth/me"]) {
     expect((await request.get(api + path)).status()).toBe(401);
   }
@@ -171,7 +182,10 @@ test.describe("телефон 390px", () => {
     const cards = page.getByRole("list", { name: "Оценки" }).getByRole("listitem");
     await expect(cards).toHaveCount(2);
     await expect(page.getByRole("table")).toHaveCount(0);
-    await expect(cards.filter({ hasText: "Математика" })).toContainText("5 · Отлично");
+    const math = cards.filter({ hasText: "Математика" });
+    await expect(math.locator(".grade-number")).toHaveText("5");
+    await expect(math).toContainText("Отлично");
+    await expect(cards.filter({ hasText: "Физика" }).locator(".grade-word")).toHaveText("Зачтено");
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
@@ -184,5 +198,26 @@ test.describe("телефон 390px", () => {
     // карточка открывает drawer предмета
     await cards.first().getByRole("button", { name: "Математика" }).click();
     await expect(page.getByRole("dialog")).toContainText("Математика");
+    // телефон: шторка снизу во всю ширину
+    const bottomGap = async () => {
+      const box = await page.getByRole("dialog").boundingBox();
+      return box ? Math.round(page.viewportSize()!.height - box.y - box.height) : -1;
+    };
+    await expect.poll(bottomGap).toBe(0); // после анимации выезда
+    expect((await page.getByRole("dialog").boundingBox())!.x).toBe(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("фильтр «События» и тумблер периода", async ({ page }) => {
+    await login(page);
+    await expect(page.locator(".toggle-row")).toContainText("Актуальное");
+    await expect(page.getByRole("button", { name: "Сегодня" })).toHaveCount(0);
+    await showAll(page);
+    await expect(page.getByRole("button", { name: "Сегодня" })).toBeVisible();
+    await page.getByRole("button", { name: "События" }).click();
+    await expect(page.getByText("Нет записей.")).toBeVisible(); // в сиде событий нет
+    await page.getByRole("button", { name: "Пары" }).click();
+    await expect(page.getByText("Физика").first()).toBeVisible();
   });
 });

@@ -50,6 +50,7 @@ class AuthConfigOut(BaseModel):
     telegram: bool
     bot_username: str
     dev_mode: bool
+    group: str  # подпись экрана входа (LK_GROUP)
 
 
 class SubjectDescription(BaseModel):

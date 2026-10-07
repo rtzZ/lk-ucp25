@@ -1,11 +1,8 @@
 /** Расписание группы, сгруппированное по датам. Клик по паре — drawer. */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Avatar from "@atlaskit/avatar";
 import Button, { LinkButton } from "@atlaskit/button/new";
-import { DatePicker, TimePicker } from "@atlaskit/datetime-picker";
-import { Drawer, DrawerCloseButton, DrawerContent } from "@atlaskit/drawer";
-import { Label } from "@atlaskit/form";
 import Heading from "@atlaskit/heading";
 import CalendarIcon from "@atlaskit/icon/core/calendar";
 import VideoIcon from "@atlaskit/icon/core/video";
@@ -15,7 +12,8 @@ import Toggle from "@atlaskit/toggle";
 import { api, type ScheduleItem, type SubjectDescription } from "../api";
 import { downloadIcs } from "../ics";
 import { semesterInfo } from "../semesters";
-import DescriptionTextArea from "../components/SubjectDescription";
+import Sheet from "../components/Sheet";
+import SubjectDescriptionView from "../components/SubjectDescription";
 
 const KIND_LABEL: Record<string, string> = {
   lesson: "Пара",
@@ -31,21 +29,14 @@ const KIND_APPEARANCE: Record<string, "default" | "inprogress" | "new" | "remove
   deadline: "moved",
 };
 
-/** Строка деталей drawer: подпись (Label) + значение. */
-function Detail({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: string;
-  children: ReactNode;
-}) {
+/** Строка деталей drawer: подпись + значение обычным текстом.
+ *  Не disabled-поля формы: они серые и читаются как «недоступно». */
+function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Stack space="space.050">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-    </Stack>
+    <div className="detail">
+      <div className="detail-label">{label}</div>
+      <div className="detail-value">{children}</div>
+    </div>
   );
 }
 
@@ -66,14 +57,23 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Запланировано",
 };
 
-function formatDate(iso: string): string {
+/** «Четверг, 8 октября» (+ год, если не текущий). Заглавная — только первая
+ *  буква: CSS capitalize давал «8 Октября 2026 Г.». */
+export function formatDate(iso: string, now = new Date()): string {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("ru-RU", {
+  const text = new Date(y, m - 1, d).toLocaleDateString("ru-RU", {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
+    ...(y !== now.getFullYear() ? { year: "numeric" } : {}),
   });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Время пары: «19:00–20:20», одно начало или пусто. */
+function timeRange(it: ScheduleItem): string {
+  if (!it.time_start) return "";
+  return it.time_end ? `${it.time_start}–${it.time_end}` : it.time_start;
 }
 
 /** Предстоящее событие: дата позже сегодня либо сегодня, но конец ещё впереди.
@@ -88,6 +88,20 @@ export function isUpcoming(it: { date: string; time_end: string }, now = new Dat
   const [h, m] = it.time_end.split(":");
   return `${pad(h)}:${pad(m ?? "0")}` >= `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
+
+/** Сегодня в ISO (локальная дата). */
+function todayIso(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+const KIND_FILTERS = [
+  { value: "", label: "Все типы" },
+  { value: "lesson", label: "Пары" },
+  { value: "attestation", label: "Аттестации" },
+  { value: "event", label: "События" },
+  { value: "deadline", label: "Дедлайны" },
+];
 
 export default function Schedule({ group }: { group: string }) {
   const [items, setItems] = useState<ScheduleItem[]>([]);
@@ -157,6 +171,25 @@ export default function Schedule({ group }: { group: string }) {
 
   const liveItems = items.filter((it) => it.status === "live");
 
+  // «Всё расписание» начинается с сентября прошлого года — прокрутка к сегодня.
+  const listRef = useRef<HTMLDivElement>(null);
+  const scrollToToday = (smooth = true) => {
+    const today = todayIso();
+    const target = [...(listRef.current?.querySelectorAll<HTMLElement>("[data-date]") ?? [])]
+      .find((el) => (el.dataset.date ?? "") >= today);
+    target?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  };
+  const jumpPending = useRef(false);
+  useEffect(() => {
+    if (!upcomingOnly) jumpPending.current = true;
+  }, [upcomingOnly]);
+  useEffect(() => {
+    if (jumpPending.current && !loading && items.length > 0) {
+      jumpPending.current = false;
+      scrollToToday(false);
+    }
+  });
+
   // Ссылка из таблицы — внешний источник: только http(s), иначе кнопка disabled.
   const lessonLink =
     selected?.link && /^https?:\/\//i.test(selected.link) ? selected.link : "";
@@ -187,42 +220,52 @@ export default function Schedule({ group }: { group: string }) {
           />
           <span>{upcomingOnly ? "Актуальное" : "Всё расписание"}</span>
         </label>
+        {!upcomingOnly && (
+          <Button appearance="subtle" onClick={() => scrollToToday()}>
+            Сегодня
+          </Button>
+        )}
       </div>
-      <div className="filters">
-        {[
-          { value: "", label: "Всё" },
-          { value: "lesson", label: "Пара" },
-          { value: "attestation", label: "Аттестация" },
-          { value: "deadline", label: "Дедлайн" },
-        ].map((f) => (
+      <div className="filters" role="group" aria-label="Тип записи">
+        {KIND_FILTERS.map((f) => (
           <button
             key={f.value || "all"}
+            type="button"
+            aria-pressed={kind === f.value}
             className={kind === f.value ? "chip active" : "chip"}
             onClick={() => setKind(f.value)}
           >
             {f.label}
           </button>
         ))}
-        <button
-          className="chip add-calendar"
-          onClick={() => downloadIcs([...byDate.values()].flat())}
-        >
-          Добавить в календарь
-        </button>
+        <span className="filters-end">
+          <Button
+            appearance="subtle"
+            iconBefore={CalendarIcon}
+            onClick={() => downloadIcs([...byDate.values()].flat())}
+          >
+            Добавить в календарь
+          </Button>
+        </span>
       </div>
       {loading && <p>Загрузка…</p>}
       {!loading && loadError && <p className="error">{loadError}</p>}
       {!loading && !loadError && byDate.size === 0 && <p>Нет записей.</p>}
-      {[...byDate.entries()].map(([date, list]) => {
+      <div ref={listRef}>
+      {[...byDate.entries()].map(([date, list], i, days) => {
+        // Полоса семестра — только когда он сменился, а не под каждым днём.
         const sem = semesterInfo(date);
+        const prev = i > 0 ? semesterInfo(days[i - 1][0]) : null;
+        const semChanged =
+          sem && (!prev || prev.numeral !== sem.numeral || prev.academicYear !== sem.academicYear);
         return (
-          <section key={date} className="day">
-            <h3>{formatDate(date)}</h3>
-            {sem && (
-              <div className="meta">
+          <section key={date} className="day" data-date={date}>
+            {semChanged && (
+              <div className="semester-divider">
                 {sem.numeral} семестр · {sem.academicYear} уч. год
               </div>
             )}
+            <h3>{formatDate(date)}</h3>
           {list.map((it) => (
             <article
               key={it.id}
@@ -247,9 +290,7 @@ export default function Schedule({ group }: { group: string }) {
                 <Lozenge appearance={KIND_APPEARANCE[it.kind] ?? "default"}>
                   {KIND_LABEL[it.kind] ?? it.kind}
                 </Lozenge>
-                {it.time_start && (
-                  <span className="time">{it.time_start}–{it.time_end}</span>
-                )}
+                {it.time_start && <span className="time">{timeRange(it)}</span>}
                 {it.status !== "active" && (
                   <Lozenge
                     appearance={
@@ -274,16 +315,13 @@ export default function Schedule({ group }: { group: string }) {
           </section>
         );
       })}
+      </div>
       {selected && (
-        <Drawer
-          isOpen
+        <Sheet
           onClose={() => setSelected(null)}
           label={`Занятие: ${selected.subject_text}`}
-          width="narrow"
         >
-          <DrawerCloseButton />
-          <DrawerContent>
-            <Box paddingInlineStart="space.0" paddingInlineEnd="space.400">
+            <Box>
               <Stack space="space.200">
               <Heading size="medium" as="h2">
                 {selected.subject_text || KIND_LABEL[selected.kind]}
@@ -304,62 +342,32 @@ export default function Schedule({ group }: { group: string }) {
                 </Lozenge>
               </Inline>
               <Stack space="space.150">
-<Detail id="lesson-date" label="Дата">
-                  <DatePicker
-                    key={`date-${selected.id}`}
-                    id="lesson-date"
-                    defaultValue={selected.date}
-                    dateFormat="DD.MM.YYYY"
-                    isDisabled
-                    appearance="subtle"
-                  />
+<Detail label="Когда">
+                  {formatDate(selected.date)}
+                  {selected.time_start && (
+                    <>
+                      {" · "}
+                      <span className="nowrap">{timeRange(selected)}</span>
+                    </>
+                  )}
                 </Detail>
-                {selected.time_start && (
-                  <Detail id="lesson-time" label="Время">
-                    <Inline space="space.100" alignBlock="center">
-                      <TimePicker
-                        key={`time-${selected.id}`}
-                        id="lesson-time"
-                        defaultValue={selected.time_start}
-                        timeFormat="HH:mm"
-                        isDisabled
-                        appearance="subtle"
-                      />
-                      {selected.time_end && (
-                        <>
-                          <Text as="p" color="color.text.subtle">
-                            –
-                          </Text>
-                          <TimePicker
-                            key={`time-end-${selected.id}`}
-                            id="lesson-time-end"
-                            defaultValue={selected.time_end}
-                            timeFormat="HH:mm"
-                            isDisabled
-                            appearance="subtle"
-                          />
-                        </>
-                      )}
-                    </Inline>
-                  </Detail>
-                )}
                 {selected.teacher && (
-                  <Detail id="lesson-teacher" label="Преподаватель">
+                  <Detail label="Преподаватель">
                     <Inline space="space.100" alignBlock="center">
                       <Avatar size="small" name={selected.teacher} />
-                      <Text id="lesson-teacher">{selected.teacher}</Text>
+                      <Text>{selected.teacher}</Text>
                     </Inline>
                   </Detail>
                 )}
                 {selected.org && (
-                  <Detail id="lesson-org" label="Организация">
+                  <Detail label="Организация">
                     <Text as="p">
                       {selected.org}
                     </Text>
                   </Detail>
                 )}
                 {selected.note && (
-                  <Detail id="lesson-note" label="Заметка">
+                  <Detail label="Заметка">
                     <Text as="p">
                       {selected.note}
                     </Text>
@@ -400,11 +408,10 @@ export default function Schedule({ group }: { group: string }) {
                   Добавить в календарь
                 </Button>
               </Stack>
-              <DescriptionTextArea description={subjectDesc} />
+              <SubjectDescriptionView description={subjectDesc} />
               </Stack>
             </Box>
-          </DrawerContent>
-        </Drawer>
+        </Sheet>
       )}
     </div>
   );

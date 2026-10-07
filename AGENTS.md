@@ -37,7 +37,7 @@ cd frontend; npm.cmd run test:e2e
 ## Архитектурные особенности
 
 - **Бэкенд:** FastAPI + asyncpg + APScheduler **3.x** (не 4.x! — на PyPI только альфы). Синхронизация из Яндекс.Таблиц через headless Chromium (URL из edit-страницы, подпись покрывает query целиком).
-- **Фронтенд:** React 18 + TypeScript + Atlaskit. `React.StrictMode` **отключён** (`main.tsx:5`) — `@atlaskit/portal` v6 теряет контент popup/drawer при двойном монтировании в dev.
+- **Фронтенд:** React 18 + TypeScript + Atlaskit. `React.StrictMode` **отключён** (`main.tsx:5`) — `@atlaskit/portal` v6 теряет контент popup при двойном монтировании в dev. Панели подробностей — свой `components/Sheet.tsx` на нативном `<dialog>`, не `@atlaskit/drawer`.
 - **Авторизация:** ФИО + временный пароль от Telegram-бота (`bot.py`, привязка через /start) → Bearer-токен; все данные за `current_student`. Локально/E2E: `AUTH_DEV_MODE=1` (пароль в ответе API). `Student.code` = нормализованная "фамилия имя" (без отчества).
 - **SQLAlchemy без relationships** — ленивая загрузка падает в async; только FK + явные select.
 - **Таблицы через `create_all`** при старте (Aleiambic подключить при первой эволюции схемы).
