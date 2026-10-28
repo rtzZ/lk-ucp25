@@ -76,3 +76,45 @@ npm.cmd run test:e2e   # E2E (нужны запущенные backend SEED_DEMO=
 | `FRONTEND_URL` | `http://localhost:5173` | CORS-origin фронтенда |
 | `VITE_API_URL` | `http://localhost:8000` | Адрес API для фронтенда |
 | `LOG_LEVEL` | `INFO` | Уровень логов |
+
+
+
+
+from sentence_transformers import SentenceTransformer
+from bertopic import BERTopic
+from umap import UMAP
+from hdbscan import HDBSCAN
+
+emb_model = SentenceTransformer("ai-forever/FRIDA")
+texts = [preprocess(t) for t in tickets]  # очистка + суть проблемы
+emb = emb_model.encode(["categorize: " + t for t in texts],
+                       normalize_embeddings=True, batch_size=32)
+
+topic_model = BERTopic(
+    umap_model=UMAP(n_components=10, n_neighbors=15, metric="cosine"),
+    hdbscan_model=HDBSCAN(min_cluster_size=15, metric="euclidean",
+                          cluster_selection_method="eom", prediction_data=True),
+)
+topics, _ = topic_model.fit_transform(texts, emb)
+
+
+
+
+import re
+PATTERNS = [
+    (r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?\S*", "<TS>"),
+    (r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", "<UUID>"),
+    (r"\b[\w.+-]+@[\w-]+\.[\w.]+\b", "<EMAIL>"),
+    (r"\b\d{1,3}(\.\d{1,3}){3}(:\d+)?\b", "<IP>"),
+    (r"(/[\w.-]+){2,}", "<PATH>"),
+    (r"\b0x[0-9a-f]+\b", "<HEX>"),
+    (r"\b\d+\b", "<NUM>"),
+]
+def signature(error_block: str) -> str:
+    s = error_block.strip().splitlines()[0]          # обычно хватает первой строки
+    s = re.sub(r"^\s*ERROR\s*", "", s)
+    for p, r in PATTERNS:
+        s = re.sub(p, r, s, flags=re.I)
+    return re.sub(r"\s+", " ", s)
+
+    
